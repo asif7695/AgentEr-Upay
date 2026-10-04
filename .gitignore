@@ -1,0 +1,19 @@
+backend/.venv/
+backend/var/
+__pycache__/
+.pytest_cache/
+frontend/node_modules/
+frontend/.next/
+.env
+
+# Python / Node caches and local state
+*.pyc
+.venv/
+venv/
+*.db
+*.tsbuildinfo
+frontend/.env*
+!frontend/.env.example
+backend/.env
+.DS_Store
+frontend/shots/
