@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   AgentEr Upay: FLAT design tokens.
+   Flat = solid colours, crisp 1px borders, no shadows or gradients, modest radii, bold accent fills.
+   (The `neu-*` class names are historical; they are kept so components did not need to change.)
+   Surfaces: page (--bg) < card (--surface) ; wells (--well) are tinted areas for tables, charts and inputs.
+   AA notes: --muted is #54637E (>= 4.5:1 on white and on --well); status colours used as TEXT are darker/lighter
+   variants, the brighter spec colours are used for fills and strokes only (always paired with an icon + label).
+------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --bg: #F1F4F9;
+  --surface: #FFFFFF;
+  --well: #E9EEF5;
+  --border: #CBD4E2;
+  --text: #0D1C42;
+  --muted: #4F5E7F;
+  --hairline: rgba(13, 28, 66, .16);
+  --accent: #0D1C42;            /* brand navy */
+  --accent-fill: #0D1C42;
+  --accent-on: #FFFFFF;
+  --accent-2: #F5B400;          /* upay warm yellow (assumed) */
+  --focus: #1D4ED8;
+  --ok: #2FA36B;   --watch: #E0A100;   --high: #D9534F;
+  --ok-text: #17704A; --watch-text: #7A5800; --high-text: #B0302C;
+  --c-a: #1D4ED8;  --c-b: #C2570C;      /* chart series: A = cash-out / cash, B = cash-in / e-float */
+  --c-a-soft: rgba(29, 78, 216, .16); --c-b-soft: rgba(194, 87, 12, .16);
+  --closed: rgba(84, 99, 126, .16);
+  --nav-active-bg: var(--well); --nav-active-fg: var(--accent);
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #040A18; --surface: #0A1530; --well: #060E24; --border: #1D3163;
+  --text: #EAF0FF; --muted: #9DABCF;
+  --hairline: rgba(170, 182, 214, .22);
+  --accent: #6F9BFF; --accent-fill: #2F6BF0; --accent-on: #FFFFFF; --focus: #6F9BFF;
+  --ok: #34C98A; --watch: #E8B100; --high: #F2793A;
+  --nav-active-bg: #2F6BF0; --nav-active-fg: #FFFFFF;
+  --ok-text: #4FD99C; --watch-text: #F2C14E; --high-text: #FF9961;
+  --c-a: #5B8BE0; --c-b: #D2772F;
+  --c-a-soft: rgba(91, 139, 224, .26); --c-b-soft: rgba(210, 119, 47, .26);
+  --closed: rgba(170, 182, 214, .12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #040A18; --surface: #0A1530; --well: #060E24; --border: #1D3163;
+    --text: #EAF0FF; --muted: #9DABCF;
+    --hairline: rgba(170, 182, 214, .22);
+    --accent: #6F9BFF; --accent-fill: #2F6BF0; --accent-on: #FFFFFF; --focus: #6F9BFF;
+  --ok: #34C98A; --watch: #E8B100; --high: #F2793A;
+  --nav-active-bg: #2F6BF0; --nav-active-fg: #FFFFFF;
+    --ok-text: #4FD99C; --watch-text: #F2C14E; --high-text: #FF9961;
+    --c-a: #5B8BE0; --c-b: #D2772F;
+    --c-a-soft: rgba(91, 139, 224, .26); --c-b-soft: rgba(210, 119, 47, .26);
+    --closed: rgba(170, 182, 214, .12);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent-2);
+  --color-ok: var(--ok-text);
+  --color-watch: var(--watch-text);
+  --color-high: var(--high-text);
+  --font-sans: var(--font-geist-sans), var(--font-bn), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), var(--font-bn), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+html[lang="bn"] body { font-family: var(--font-bn), var(--font-geist-sans), system-ui, sans-serif; }
+
+/* ---- flat surfaces: solid fill + 1px border, never a shadow ------------------ */
+.neu-raised    { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }       /* cards, panels */
+.neu-raised-sm { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }    /* chips, active tabs */
+.neu-inset     { background: var(--well);    border: 1px solid var(--border); border-radius: var(--radius-sm); }    /* tables, chart areas */
+.neu-inset-sm  { background: var(--well);    border: 1px solid var(--border); border-radius: 8px; }                 /* badges, tracks */
+.neu-flat      { background: transparent;    border: 1px solid var(--border); border-radius: var(--radius-sm); }    /* list items */
+
+/* buttons: solid, flat; hover = tint change, press = darker tint (no lift, no shadow) */
+.neu-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  min-height: 44px; min-width: 44px; padding: 0 18px; font-weight: 600; color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.neu-btn:hover:not(:disabled) { background: var(--well); border-color: var(--muted); }
+.neu-btn:active:not(:disabled), .neu-btn[aria-pressed="true"] { background: var(--well); border-color: var(--accent); color: var(--accent); }
+.neu-btn:disabled { opacity: .55; cursor: not-allowed; }
+.neu-btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-on); }
+.neu-btn.primary:hover:not(:disabled) { filter: brightness(1.12); background: var(--accent-fill); border-color: var(--accent-fill); }
+.neu-btn.primary:active:not(:disabled) { filter: brightness(.9); color: var(--accent-on); border-color: var(--accent-fill); }
+.neu-btn.danger { color: var(--high-text); }
+
+/* inputs: white field with a visible border; accent border on focus */
+.neu-input {
+  background: var(--surface); border: 1px solid var(--muted); border-radius: 10px;
+  min-height: 48px; padding: 0 16px; width: 100%; color: var(--text); font-size: 1rem;
+}
+.neu-input:focus { border-color: var(--accent); }
+.neu-input::placeholder { color: var(--muted); opacity: .85; }
+
+/* focus: visible 2px accent ring on every interactive element */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+.neu-input:focus-visible { outline-offset: 1px; }
+
+/* active navigation item: tinted in light, solid accent in dark */
+a[aria-current="page"] { background: var(--nav-active-bg) !important; color: var(--nav-active-fg) !important; border-color: transparent !important; }
+
+/* table rows: flat, tint on hover */
+.neu-row { transition: background-color .12s ease; border-radius: 8px; }
+.neu-row:hover { background: color-mix(in srgb, var(--surface) 70%, var(--accent) 8%); }
+
+/* skeleton: flat pulse */
+@keyframes neu-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+.neu-skeleton { border-radius: 8px; background: var(--well); border: 1px solid var(--border); animation: neu-pulse 1.4s ease-in-out infinite; }
+
+.neu-scroll { scrollbar-width: thin; scrollbar-color: var(--hairline) transparent; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* recharts text */
+.recharts-text, .recharts-cartesian-axis-tick-value { fill: var(--muted); font-size: 12px; }
+.recharts-tooltip-wrapper { outline: none; }
