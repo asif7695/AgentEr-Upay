@@ -1,0 +1,27 @@
+# docker compose up --build   ->  API on :8000, web app on :3000
+services:
+  api:
+    build: ./backend
+    environment:
+      UPAY_FILES_DIR: /data/files          # model bundle + dataset (read-only)
+      UPAY_VAR_DIR: /var/upay              # SQLite lives here
+      UPAY_JWT_SECRET: ${UPAY_JWT_SECRET:-change-me-for-anything-but-a-local-demo-0123456789}
+      UPAY_CORS: http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      - ./files:/data/files:ro
+      - upay-var:/var/upay
+    ports: ["8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      retries: 12
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["3000:3000"]
+volumes:
+  upay-var:
