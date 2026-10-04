@@ -1,0 +1,49 @@
+{
+  "label": "Simulation on synthetic data",
+  "source": "Offline evaluation notebook (agent_liquidity_forecaster.ipynb), not measured on real upay data.",
+  "policy_replay": {
+    "period": "2025-09-01 to 2025-12-24",
+    "agents": 16,
+    "days": 115,
+    "policies": [
+      {"key": "habit", "name": "Agent habit", "rule": "order when a balance < 30% of capacity, top up to 65%",
+       "stockout_days": 64, "cash_stockout_days": 44, "efloat_stockout_days": 20, "unserved_bdt": 653720, "orders": 309},
+      {"key": "hybrid", "name": "Hybrid (recommended)", "rule": "habit buffer raised by the model's requirement at 95% coverage",
+       "stockout_days": 29, "cash_stockout_days": 19, "efloat_stockout_days": 10, "unserved_bdt": 232643, "orders": 503},
+      {"key": "model_only", "name": "Model only (just-in-time)", "rule": "order when below the model's recommended level",
+       "stockout_days": 76, "cash_stockout_days": null, "efloat_stockout_days": null, "unserved_bdt": 549632, "orders": 518}
+    ]
+  },
+  "coverage_sweep": [
+    {"coverage": 0.80, "stockout_days": 40, "orders": 396},
+    {"coverage": 0.90, "stockout_days": 36, "orders": 450},
+    {"coverage": 0.95, "stockout_days": 29, "orders": 503},
+    {"coverage": 0.99, "stockout_days": 18, "orders": 587}
+  ],
+  "coverage_habit": {"stockout_days": 64, "orders": 309},
+  "reduction_by_type": [
+    {"type": "rural", "reduction_pct": 78},
+    {"type": "university", "reduction_pct": 71},
+    {"type": "market", "reduction_pct": 50},
+    {"type": "garment", "reduction_pct": 20},
+    {"type": "remittance_urban", "reduction_pct": 0}
+  ],
+  "garment_capital": {"pct_days_requirement_exceeds_total_float": 10.7, "avg_shortfall_bdt": 13062},
+  "accuracy": {
+    "period": "test, Sep-Dec 2025",
+    "wape_cashout": 0.171, "wape_cashin": 0.175,
+    "baseline_cashout": 0.315, "baseline_cashin": 0.303,
+    "noise_floor": 0.161,
+    "interval80_coverage_cashout": 0.770, "interval80_coverage_cashin": 0.753,
+    "unseen_agent": {"cashout_unseen": 0.172, "cashout_seen": 0.169},
+    "unseen_festival": {"cashout": 0.292, "cashin": 0.229, "note": "Eid-ul-Adha held out of training"}
+  },
+  "limitations": [
+    "Synthetic data: the model recovers patterns that were planted, so results validate the pipeline, not real-world accuracy.",
+    "One year of data (2025) only.",
+    "The model was trained on all of 2025, so replay dates are in-sample for the deployed model.",
+    "The risk engine assumes independent days, so tail risk is probably understated.",
+    "Recommendations only: humans decide, nothing is autonomous.",
+    "Needs governed upay data for validation before any pilot."
+  ]
+}
