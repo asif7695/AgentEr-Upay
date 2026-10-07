@@ -90,12 +90,34 @@ def test_estimated_matrix_is_loadable_for_every_agent_type():
 def test_rule_validation_and_cache_split(client, admin):
     r = client.put("/admin/config", json={"dependence_mode": "nope"}, headers=admin)
     assert r.status_code == 422
-    h_c = br.config_hash({**br.DEFAULT_RULES, "dependence_mode": "correlated"})
+    h_c = br.config_hash({**br.DEFAULT_RULES, "dependence_mode": "t_copula"})
     h_i = br.config_hash({**br.DEFAULT_RULES, "dependence_mode": "independent"})
     assert h_c != h_i
     f = client.get("/agents/A01/forecast?explain=false", headers=admin).json()["dependence"]
-    assert f["mode"] == "correlated" and f["risk_independent"] and f["risk_correlated"]
+    assert f["mode"] == "t_copula" and f["risk_independent"] and f["risk_correlated"]
     client.put("/admin/config", json={"dependence_mode": "independent"}, headers=admin)
     g = client.get("/agents/A01/forecast?explain=false", headers=admin).json()
     assert g["dependence"]["mode"] == "independent"
     assert g["cash"]["risk_pct"] == f["risk_independent"]["cash"]
+
+
+def test_every_dependence_mode_is_selectable_and_loads(client, admin):
+    from app.ml.dependence import DEPENDENCE_MODES, load_dependence
+    for m in DEPENDENCE_MODES:
+        d = load_dependence(m, "rural")
+        assert (d is None) == (m == "independent")
+        if m == "t_copula":
+            assert d[1] and d[1] > 2
+        assert client.put("/admin/config", json={"dependence_mode": m}, headers=admin).status_code == 200
+        assert client.get("/agents/A02/forecast?explain=false", headers=admin).json()["dependence"]["mode"] == m
+
+
+def test_student_t_copula_clusters_extremes_more_than_gaussian():
+    N_ = 40000
+    c = ar1_corr(0.3, 0.0)
+    gg, tt = CopulaRNG(4, c, N_), CopulaRNG(4, c, N_, nu=4)
+    a_g, b_g = gg.random(N_), gg.random(N_)
+    a_t, b_t = tt.random(N_), tt.random(N_)
+    joint = lambda a, b: np.mean((a > 0.99) & (b > 0.99))
+    assert joint(a_t, b_t) > 1.5 * joint(a_g, b_g)
+    assert stats.kstest(a_t, "uniform").pvalue > 0.001                    # marginals still uniform
