@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { NeuBadge, NeuButton, NeuCard, NeuGauge, NeuTable, NeuTabs, StatusBadge, Td, Th, Tr, cx } from "@/components/neu";
 import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
-import type { Action, Forecast, Reconciliation, Section, WhyItem } from "@/lib/types";
+import type { Action, AdaParam, Forecast, Reconciliation, Section, WhyItem } from "@/lib/types";
 
 /* ----------------------------------------------------------- action text */
 export function useActionText() {
@@ -127,6 +127,12 @@ export function RiskPanel({ fc, size = 168 }: { fc: Forecast; size?: number }) {
           ))}
           <span className="text-muted">{t("dep.active", { mode: t(`dep.mode.${fc.dependence.mode}` as DictKey) })} · {t("model.active", { model: t(`model.choice.${fc.model.choice}` as DictKey) })}</span>
         </div>
+      )}
+      {fc.adaptive && Object.keys(fc.adaptive.overrides).length > 0 && (
+        <p className="pill pill-accent flex items-start gap-2 p-3 text-xs font-semibold text-accent" style={{ borderRadius: 12 }}>
+          <Info size={15} className="mt-0.5 shrink-0" aria-hidden />
+          {t("ada.adapted_note", { what: (Object.entries(fc.adaptive.overrides) as [AdaParam, number][]).map(([k, v]) => `${t(`ada.param.${k}` as DictKey)} ${fmt.pct(k === "coverage_prob" || k === "buffer_frac" ? v * 100 : v, 1)}`).join(" · ") })}
+        </p>
       )}
     </NeuCard>
   );

@@ -56,7 +56,8 @@ export interface Forecast {
   actions: Action[];
   expected_unserved: { cash: number; efloat: number; total: number; note: string };
   events: { id: number; kind: string; multiplier: number; flow: string; start_date: string; end_date: string; note: string | null; label: string }[];
-  thresholds: { high: number; watch: number };
+  thresholds: { high: number; watch: number; adapted?: boolean };
+  adaptive?: { mode: AdaMode; overrides: Partial<Record<AdaParam, number>> };
   model: { choice: "challenger" | "reference"; calibrated: boolean; name: string | null };
   dependence: { mode: DepMode; available: boolean; risk_independent: DepRisk | null; risk_correlated: DepRisk | null; note: string };
   config: { buffer_frac: number; coverage_prob: number; min_order_frac: number; n_paths: number; surge_multiple: number };
@@ -177,6 +178,27 @@ export interface ModelEvidence {
   dependence: { n_origins?: number; t_nu?: number; ar1?: { rho_day: number; rho_cross: number }; method?: string; dataset?: string };
   paths?: { protocol: string; estimate: { n_origins: number; rho_day: number; rho_cross: number; t_nu: number }; results: Record<string, { "3d": PathRates; "7d": PathRates }> };
   active: { model_choice: "challenger" | "reference"; dependence_mode: DepMode };
+}
+
+export type AdaMode = "off" | "suggest" | "auto";
+export interface AdaProfile {
+  agent_id: string; tier: string; as_of: string; history_days: number; n_days: number; n_obs: number; breaches: number; breach_rate: number | null; z: number | null;
+  hit80: number | null; bias_pct: number | null; vol: number | null; trend_pct: number | null; stockout_days_60: number; alert_n: number; alert_hits: number;
+  precision: number | null; report_reliability: number | null;
+}
+export interface AdaReason { code: string; params: Record<string, number>; text: string }
+export type AdaParam = "coverage_prob" | "buffer_frac" | "high_threshold" | "watch_threshold";
+export interface AdaChange {
+  id: number; agent_id: string; created_date: string; params: Partial<Record<AdaParam, { from: number; to: number; prev: number | null; new: number | null }>>;
+  reasons: AdaReason[]; profile: AdaProfile; status: "proposed" | "applied" | "dismissed" | "reverted" | "superseded"; mode: "suggest" | "auto";
+  decided_by: string | null; decided_at: string | null; created_at: string;
+}
+export interface AdaptiveView {
+  date: string; mode: AdaMode; note: string; pending: number; active: number;
+  guard: { min_days: number; z_gate: number; cov_up: number; cov_down: number; buf_floor: number; buf_cap: number; thr_shift: number; min_gap: number; min_alerts: number; cooldown_days: number };
+  network: { precision: number; alerts: number; vol_all: number | null };
+  agents: { agent_id: string; division: string; tier: string; profile: AdaProfile; base: Record<AdaParam, number>; active: Partial<Record<AdaParam, number>>; evidence_supports: Partial<Record<AdaParam, number>>; reasons: AdaReason[] }[];
+  changes: AdaChange[];
 }
 
 export interface TierCost { orders: number; unserved: number; demand: number; stockout_days: number; service_rate: number; trips_cost: number; lost_cost: number; lost_agent: number; lost_upay: number; capital_cost: number; total: number }
