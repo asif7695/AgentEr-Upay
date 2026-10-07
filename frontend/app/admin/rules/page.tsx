@@ -25,13 +25,14 @@ export default function RulesPage() {
   const { data: audit, reload: reloadAudit } = useApi<AuditItem[]>("/admin/audit?limit=12", { live: false });
   const [vals, setVals] = useState<Record<string, string>>({});
   const [manual, setManual] = useState("");
+  const [depMode, setDepMode] = useState<"correlated" | "independent">("correlated");
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const load = (r: RulesView) => {
     const v: Record<string, string> = {};
     for (const f of FIELDS) { const x = r.rules[f.key as keyof RulesView["rules"]] as number; v[f.key] = String(f.pct ? +(x * 100).toFixed(2) : x); }
-    setVals(v); setManual(r.rules.manual_report_agents.join(", ")); setErrs({});
+    setVals(v); setManual(r.rules.manual_report_agents.join(", ")); setDepMode(r.rules.dependence_mode); setErrs({});
   };
   useEffect(() => { if (data) load(data); }, [data]);
 
@@ -52,6 +53,7 @@ export default function RulesPage() {
     if (Object.keys(e).length) { toast(t("rules.invalid"), "error"); return; }
     const body: Record<string, unknown> = {};
     for (const f of FIELDS) body[f.key] = f.pct ? Number(vals[f.key]) / 100 : Number(vals[f.key]);
+    body.dependence_mode = depMode;
     body.manual_report_agents = manual.split(",").map((s) => s.trim()).filter(Boolean);
     setBusy(true);
     try { await api("/admin/config", { method: "PUT", body }); toast(t("rules.saved")); reload(); reloadAudit(); bump(); }
@@ -79,6 +81,10 @@ export default function RulesPage() {
               <NeuInput key={f.key} label={`${t(f.label)}${f.pct || f.key.endsWith("threshold") ? " (%)" : ""}`} inputMode="decimal" value={vals[f.key] ?? ""}
                 onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })} error={errs[f.key]} hint={errs[f.key] ? undefined : t("rules.bounds", { lo: fmt.num(bounds(f)[0], 1), hi: fmt.num(bounds(f)[1], 1) })} />
             ))}
+            <NeuSelect label={t("rules.dep")} value={depMode} onChange={(e) => setDepMode(e.target.value as "correlated" | "independent")}>
+              <option value="correlated">{t("dep.mode.correlated")}</option>
+              <option value="independent">{t("dep.mode.independent")}</option>
+            </NeuSelect>
             <NeuInput label={t("rules.manual")} value={manual} onChange={(e) => setManual(e.target.value)} hint={t("rules.manual.help")} />
           </div>
           <div className="flex flex-wrap items-center gap-3">

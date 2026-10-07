@@ -42,6 +42,7 @@ export type Action =
   | { type: "verify_report"; gap_pct: number | null }
   | { type: "all_good" };
 
+export interface DepRisk { cash: number; efloat: number; cash_7d: number; efloat_7d: number }
 export interface Forecast {
   agent: { agent_id: string; division: string; location_type: string; capacity_cash: number; capacity_efloat: number };
   as_of: string; sim_date: string; status: Status;
@@ -55,6 +56,7 @@ export interface Forecast {
   expected_unserved: { cash: number; efloat: number; total: number; note: string };
   events: { id: number; kind: string; multiplier: number; flow: string; start_date: string; end_date: string; note: string | null; label: string }[];
   thresholds: { high: number; watch: number };
+  dependence: { mode: "correlated" | "independent"; available: boolean; risk_independent: DepRisk | null; risk_correlated: DepRisk | null; note: string };
   config: { buffer_frac: number; coverage_prob: number; min_order_frac: number; n_paths: number; surge_multiple: number };
   why?: Why;
   synthetic_data: boolean;
@@ -114,7 +116,7 @@ export interface AlertItem {
 export interface RulesView {
   rules: {
     buffer_frac: number; coverage_prob: number; min_order_frac: number; high_threshold: number; watch_threshold: number;
-    recon_tolerance: number; manual_report_agents: string[];
+    recon_tolerance: number; manual_report_agents: string[]; dependence_mode: "correlated" | "independent";
   };
   config_hash: string; bounds: Record<string, [number, number]>; defaults: Record<string, unknown>;
   model_risk_config: Record<string, number>; note: string;

@@ -113,6 +113,17 @@ export function RiskPanel({ fc, size = 168 }: { fc: Forecast; size?: number }) {
         })}
       </div>
       <p className="neu-inset flex items-start gap-2 p-3 text-xs text-muted"><Info size={15} className="mt-0.5 shrink-0" aria-hidden />{t("fc.risk.why_two")}</p>
+      {fc.dependence.risk_independent && fc.dependence.risk_correlated && (
+        <div className="neu-inset flex flex-col gap-1 p-3 text-xs" aria-label={t("dep.title")}>
+          <span className="font-bold">{t("dep.title")}</span>
+          {(["cash", "efloat"] as const).map((k) => (
+            <span key={k} className="text-muted">
+              {t(k === "cash" ? "gauge.cash" : "gauge.efloat")}: {t("dep.line", { a: fmt.pct(fc.dependence.risk_independent![k]), b: fmt.pct(fc.dependence.risk_correlated![k]) })}
+            </span>
+          ))}
+          <span className="text-muted">{t("dep.active", { mode: t(fc.dependence.mode === "correlated" ? "dep.mode.correlated" : "dep.mode.independent") })}</span>
+        </div>
+      )}
     </NeuCard>
   );
 }

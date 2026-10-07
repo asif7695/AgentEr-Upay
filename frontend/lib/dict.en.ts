@@ -67,6 +67,9 @@ const en = {
 
   "fc.title": "7-day forecast", "fc.for": "Forecast from {date}",
   "fc.risk.headline": "Risk before the next possible top-up", "fc.risk.7d": "7 days if nothing is done",
+  "dep.title": "Do bad days cluster? Risk with and without day-to-day correlation", "dep.line": "independent days {a} → with correlation {b}",
+  "dep.active": "Shown above: {mode}", "dep.mode.correlated": "Correlated days (default)", "dep.mode.independent": "Independent days (supplied engine default)",
+  "rules.dep": "Demand dependence across days",
   "fc.risk.why_two": "Why two numbers? Over 7 days of doing nothing, risk is high for almost everyone because balances always drain. The number that matters is the risk before help can arrive. That window gets longer before weekends and holidays.",
   "fc.risk.curve": "Chance of running out by day", "fc.runout.likely": "Likely to run out on {date}", "fc.runout.none": "No run-out expected within 7 days",
   "fc.window": "{n}-day window, until {date}", "fc.day": "Day {n}",
