@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from . import liquidity_forecaster as lf
+from . import conformal
 from .dependence import CopulaRNG
 from .model_store import GENERATOR_INTERNALS
 
@@ -54,19 +55,26 @@ def serving_features(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, 
 
 def run_forecast(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, origin, cash: float, efloat: float,
                  risk_cfg: dict, event_mult: np.ndarray | None = None, seed: int = 0,
-                 dependence: np.ndarray | None = None) -> dict:
+                 dependence: np.ndarray | tuple | None = None, location_type: str | None = None) -> dict:
     """Full forecast. With event_mult=None and dependence=None this equals lf.forecast_agent(..., seed) numerically (tested).
-    dependence: optional 14x14 correlation (see ml/dependence.py); the supplied engine runs unchanged on correlated draws."""
+    dependence: optional 14x14 correlation, or (correlation, t_nu) for a Student-t copula (see ml/dependence.py);
+    the supplied engine runs unchanged on the dependent draws."""
     f = serving_features(bundle, history, agent_row, origin, cash, efloat)
     q = lf.predict_quantiles(bundle, f)
     q_co, q_ci = q["co"], q["ci"]
+    calib = bundle.get("calibration")
+    if calib and location_type:     # conformal widening of the P10-P90 / P25-P75 bands (our challenger only; the reference has none)
+        types = [location_type] * len(f)
+        q_co = conformal.apply(q_co, f["co_scale"].to_numpy(), calib["co"], types)
+        q_ci = conformal.apply(q_ci, f["ci_scale"].to_numpy(), calib["ci"], types)
     if event_mult is not None and not np.allclose(event_mult, 1.0):
         # HUMAN OVERRIDE applied to the forecast quantiles BEFORE the risk simulation (not learned by the model)
         q_co, q_ci = q_co * event_mult[:, [0]], q_ci * event_mult[:, [1]]
     r = f.iloc[0]
     cap_c, cap_e = float(r["cap_cash"]), float(r["cap_ef"])
     cfg = {**lf.DEFAULT_RISK_CONFIG, **risk_cfg}
-    make_rng = (lambda: np.random.default_rng(seed)) if dependence is None else (lambda: CopulaRNG(seed, dependence, cfg["n_paths"]))
+    corr, nu = (dependence if isinstance(dependence, tuple) else (dependence, None))
+    make_rng = (lambda: np.random.default_rng(seed)) if corr is None else (lambda: CopulaRNG(seed, corr, cfg["n_paths"], nu))
     out = lf.risk_summary(q_co, q_ci, bundle["quantiles"], cash, efloat, cap_c, cap_e, int(r["closed_ahead_origin"]),
                           r["co_scale"], r["ci_scale"], risk_cfg, make_rng())
 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.stats import norm
+from scipy.stats import t as student_t
 
 CORR_PATH = Path(__file__).resolve().parents[1] / "data" / "error_correlation.json"
 N_COLS = 14   # 2 flows x H=7 days
@@ -47,13 +48,18 @@ class CopulaRNG:
     Pre-draws all 14 correlated uniform columns at construction (reproducible from `seed`), then returns
     them one per `.random(n_paths)` call. It fails loudly if the engine's call pattern ever changes."""
 
-    def __init__(self, seed: int, corr: np.ndarray, n_paths: int):
+    def __init__(self, seed: int, corr: np.ndarray, n_paths: int, nu: float | None = None):
+        """nu=None: Gaussian copula. nu=k: Student-t copula (same correlation, joint tail dependence: extreme days cluster)."""
         corr = nearest_psd_corr(corr)
         if corr.shape != (N_COLS, N_COLS):
             raise ValueError(f"correlation must be {N_COLS}x{N_COLS}")
         rng = np.random.default_rng(seed)
         z = rng.standard_normal((n_paths, N_COLS)) @ np.linalg.cholesky(corr).T
-        self._u = norm.cdf(z)
+        if nu is None:
+            self._u = norm.cdf(z)
+        else:
+            w = rng.chisquare(nu, size=(n_paths, 1)) / nu            # one mixing variable per path -> joint extremes
+            self._u = student_t.cdf(z / np.sqrt(w), df=nu)
         self._n, self._calls = n_paths, 0
 
     def random(self, size=None):
@@ -71,13 +77,30 @@ def _store() -> dict:
     return json.loads(CORR_PATH.read_text(encoding="utf-8"))
 
 
-def load_corr(location_type: str | None = None) -> np.ndarray | None:
-    """Correlation for an agent type (falls back to the pooled matrix). None if the file is not generated yet."""
+DEPENDENCE_MODES = ("correlated", "t_copula", "ar1", "independent")
+# "correlated": Gaussian copula with the full estimated 14x14 matrix (per agent type)
+# "t_copula"  : same matrix, Student-t copula (tail dependence)
+# "ar1"       : parametric auto-regressive path model, corr(day i, day j) = rho_day^|i-j| within a flow, rho_cross across flows
+
+
+def load_dependence(mode: str, location_type: str | None = None) -> tuple[np.ndarray, float | None] | None:
+    """(correlation matrix, t degrees of freedom or None) for a mode, or None for "independent" / no estimate available."""
     s = _store()
-    if not s:
+    if mode == "independent" or not s:
         return None
+    if mode == "ar1":
+        a = s.get("ar1")
+        return (ar1_corr(a["rho_day"], a["rho_cross"]), None) if a else None
     m = (s.get("by_type") or {}).get(location_type) or s.get("pooled")
-    return nearest_psd_corr(np.array(m)) if m else None
+    if not m:
+        return None
+    return nearest_psd_corr(np.array(m)), (float(s.get("t_nu", 6)) if mode == "t_copula" else None)
+
+
+def load_corr(location_type: str | None = None) -> np.ndarray | None:
+    """Gaussian-copula correlation for an agent type (falls back to the pooled matrix)."""
+    r = load_dependence("correlated", location_type)
+    return None if r is None else r[0]
 
 
 def evidence() -> dict:
