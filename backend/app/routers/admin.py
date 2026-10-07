@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import settings
 from ..auth import current_user, require_admin
 from ..db import get_db
 from ..errors import ApiError
@@ -46,7 +47,8 @@ class ConfigPatch(BaseModel):
     high_threshold: float | None = Field(default=None, allow_inf_nan=False)
     watch_threshold: float | None = Field(default=None, allow_inf_nan=False)
     recon_tolerance: float | None = Field(default=None, allow_inf_nan=False)
-    dependence_mode: Literal["correlated", "independent"] | None = None
+    dependence_mode: Literal["t_copula", "correlated", "ar1", "independent"] | None = None
+    model_choice: Literal["challenger", "reference"] | None = None
     manual_report_agents: list[str] | None = None
 
 
@@ -59,6 +61,16 @@ class EventIn(BaseModel):
     start_date: Date
     end_date: Date
     note: str | None = Field(default=None, max_length=200)
+
+
+@router.get("/admin/model-evidence")
+def model_evidence(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Model-development evidence (comparison, calibration, unseen agents/events, path dependence). Static, offline, synthetic."""
+    path = settings.BACKEND / "app" / "data" / "model_evidence.json"
+    if not path.exists():
+        raise ApiError(404, "not_found", "Run `python -m ml_train.run main unseen paths assemble` to generate the evidence")
+    ctx = Ctx(db)
+    return dict(json.loads(path.read_text(encoding="utf-8")), active=dict(model_choice=ctx.rules["model_choice"], dependence_mode=ctx.rules["dependence_mode"]))
 
 
 @router.get("/admin/overview")

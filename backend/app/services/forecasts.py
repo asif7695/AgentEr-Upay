@@ -16,8 +16,8 @@ from .. import settings
 from ..errors import ApiError
 from ..ml import liquidity_forecaster as lf
 from ..ml import serving
-from ..ml.dependence import load_corr
-from ..ml.model_store import get_bundle
+from ..ml.dependence import load_dependence
+from ..ml.model_store import effective_model, get_bundle
 from ..rules import business_rules as br
 from .context import Ctx, ledger
 
@@ -60,27 +60,28 @@ def _calendar(d: date) -> dict:
 
 def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: float,
                  mode: str | None = None) -> tuple[dict, np.ndarray]:
-    """mode: "correlated" | "independent" (default: the admin rule). Falls back to independent if no matrix is available."""
+    """mode: one of br.DEPENDENCE_MODES (default: the admin rule). Falls back to independent if no estimate is available."""
     agent = ctx.agent(agent_id)
     mode = mode or ctx.rules["dependence_mode"]
-    corr = load_corr(agent["location_type"]) if mode == "correlated" else None
-    mode = "correlated" if corr is not None else "independent"
+    dep = load_dependence(mode, agent["location_type"])
+    mode = mode if dep is not None else "independent"
+    model = effective_model(ctx.rules["model_choice"])
     targets = [d + timedelta(days=k) for k in range(1, lf.H + 1)]
     mult = br.event_multipliers(ctx.events, agent, targets)
-    key = (agent_id, d.isoformat(), br.config_hash({**ctx.rules, "dependence_mode": mode}), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
+    key = (agent_id, d.isoformat(), br.config_hash({**ctx.rules, "dependence_mode": mode, "model_choice": model}), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
     hit = _lru_get(_cache, key)
     if hit is not None:
         STATS["hits"] += 1
         return hit, mult
     STATS["misses"] += 1
-    bundle = get_bundle()
+    bundle = get_bundle(model)
     hist = ledger.history(agent_id, d)
     if len(hist) < lf.MIN_HIST:
         raise ApiError(422, "insufficient_history", "Need at least 28 days of history")
     cfg = {**bundle["risk_config"], **br.risk_cfg_overrides(ctx.rules)}       # copy: the pickle is never mutated
     out = serving.run_forecast(bundle, hist, serving.agent_row_for_serving(bundle, agent_id), d, cash_used, efloat,
-                               cfg, mult, seed_for(agent_id, d), dependence=corr)
-    out["dependence_mode"] = mode
+                               cfg, mult, seed_for(agent_id, d), dependence=dep, location_type=agent["location_type"])
+    out["dependence_mode"], out["model"] = mode, model
     _lru_put(_cache, key, out)
     return out, mult
 
@@ -172,11 +173,12 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
     W0 = int(raw["coverage_window_days"])
     by_mode = {raw["dependence_mode"]: raw}
     if compare:
-        alt, _ = raw_forecast(ctx, agent_id, d, cash, ef, "independent" if raw["dependence_mode"] == "correlated" else "correlated")
+        alt, _ = raw_forecast(ctx, agent_id, d, cash, ef, "t_copula" if raw["dependence_mode"] == "independent" else "independent")
         by_mode[alt["dependence_mode"]] = alt
     dependence = dict(
-        mode=raw["dependence_mode"], available=("correlated" in by_mode),
-        risk_independent=_dep_risk(by_mode.get("independent"), W0), risk_correlated=_dep_risk(by_mode.get("correlated"), W0),
+        mode=raw["dependence_mode"], available=any(m != "independent" for m in by_mode),
+        risk_independent=_dep_risk(by_mode.get("independent"), W0),
+        risk_correlated=_dep_risk(next((v for m, v in by_mode.items() if m != "independent"), None), W0),
         note="Correlated mode lets a high-demand day raise the next days' demand (Gaussian copula on the model's residuals). "
              "The supplied risk engine is unchanged.")
     payload = dict(
@@ -190,6 +192,7 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
         capital=dict(insufficient=bool(raw["float_insufficient"]), needed=_r(cap_needed), total_float=_r(cash + ef),
                      required_cash=_r(raw["recommended_cash_level"]), required_efloat=_r(raw["recommended_efloat_level"])),
         days=days, bands=bands, actions=actions, dependence=dependence,
+        model=dict(choice=raw["model"], calibrated=bool(get_bundle(raw["model"]).get("calibration")), name=get_bundle(raw["model"]).get("name")),
         expected_unserved=dict(cash=_r(unserved["cash"]), efloat=_r(unserved["efloat"]), total=_r(unserved["cash"] + unserved["efloat"]),
                                note="Model estimate inside the coverage window (Monte Carlo); not ground truth."),
         events=[dict(id=e["id"], kind=e["kind"], multiplier=e["multiplier"], flow=e["flow"], start_date=e["start_date"], end_date=e["end_date"],
@@ -207,10 +210,11 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
 
 
 def get_explanations(ctx: Ctx, agent_id: str, d: date, cash: float, ef: float) -> dict:
-    key = (agent_id, d.isoformat())
+    model = effective_model(ctx.rules["model_choice"])
+    key = (agent_id, d.isoformat(), model)
     hit = _lru_get(_expl_cache, key)
     if hit is None:
-        bundle = get_bundle()
+        bundle = get_bundle(model)
         hit = serving.explain_days(bundle, ledger.history(agent_id, d), serving.agent_row_for_serving(bundle, agent_id), d, cash, ef, top=5)
         hit = {k: ([[{**i, "bdt": _r(i["bdt"])} for i in day] for day in v] if k in ("cashout", "cashin") else [_r(x) for x in v])
                for k, v in hit.items()}
