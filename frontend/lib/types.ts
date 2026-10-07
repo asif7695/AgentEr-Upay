@@ -201,6 +201,18 @@ export interface AdaptiveView {
   changes: AdaChange[];
 }
 
+export interface DetectedEventRow {
+  id: number; scope: "agent" | "division"; target: string; flow: "both" | "cashout" | "cashin"; kind: "jump" | "shift"; direction: "up" | "down"; multiplier: number;
+  start_date: string; end_date: string; status: "proposed" | "accepted" | "dismissed" | "expired" | "revoked"; event_id: number | null; created_date: string;
+  decided_by: string | null; decided_at: string | null;
+  evidence: { members: { agent_id: string; flow: string; kind: string; days: number; z_last: number; cusum: number; raw_ratio: number; multiplier: number }[]; protocol: string };
+}
+export interface DetectionEvidence {
+  stamp: string; protocol: { rule: string };
+  false_alarms: { nights: number; agent_nights: number; detections: number; detection_rate_per_agent_night: number; distinct_proposals: number; proposals_per_week: number; period: [string, string] };
+  power: Record<string, { trials: number; detected: number; detection_rate: number; median_delay_days: number | null; within_3_days: number }>;
+}
+
 export interface TierCost { orders: number; unserved: number; demand: number; stockout_days: number; service_rate: number; trips_cost: number; lost_cost: number; lost_agent: number; lost_upay: number; capital_cost: number; total: number }
 export interface PolicyNet extends TierCost { net_benefit: number }
 export interface EconTier {

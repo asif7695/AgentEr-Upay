@@ -16,7 +16,7 @@ export function useAlertText() {
     const gap = gp == null ? "" : lang === "bn" ? ` (${fmt.signed(gp)}%)` : ` by ${fmt.signed(gp)}%`;
     const key = `alerts.msg.${a.type}` as DictKey;
     try {
-      return t(key, { agent: a.agent_id, c: fmt.num(p.cash_pct ?? 0), e: fmt.num(p.efloat_pct ?? 0), w: fmt.num(p.window_days ?? 0), date: fmt.date(a.date), gap, amount: fmt.num(p.needed ?? 0) });
+      return t(key, { agent: a.agent_id, c: fmt.num(p.cash_pct ?? 0), e: fmt.num(p.efloat_pct ?? 0), w: fmt.num(p.window_days ?? 0), date: fmt.date(a.date), gap, amount: fmt.num(p.needed ?? 0), pct: fmt.num(Math.abs(p.pct ?? 0)) });
     } catch { return a.message; }
   };
 }

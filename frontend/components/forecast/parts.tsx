@@ -319,7 +319,9 @@ export function EventBanner({ fc }: { fc: Forecast }) {
       {fc.events.map((e) => (
         <p key={e.id} role="status" className="neu-inset flex items-start gap-2 p-3 text-sm font-medium text-watch">
           <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
-          {t("fc.manual.banner", { kind: t(`events.kind.${e.kind}` as "events.kind.fair"), mult: e.multiplier, start: fmt.dateTiny(e.start_date), end: fmt.dateTiny(e.end_date) })}
+          {e.kind === "detected"
+            ? t("fc.detected.banner", { mult: e.multiplier, start: fmt.dateTiny(e.start_date), end: fmt.dateTiny(e.end_date) })
+            : t("fc.manual.banner", { kind: t(`events.kind.${e.kind}` as "events.kind.fair"), mult: e.multiplier, start: fmt.dateTiny(e.start_date), end: fmt.dateTiny(e.end_date) })}
         </p>
       ))}
     </div>

@@ -1,12 +1,12 @@
 "use client";
-import { Check, History, Settings2, Sparkles, Undo2, UserCheck, X } from "lucide-react";
+import { Activity, Check, History, Settings2, Sparkles, Undo2, UserCheck, X } from "lucide-react";
 import Link from "next/link";
 import { ErrorState, NeuBadge, NeuButton, NeuCard, NeuSelect, NeuStat, NeuTable, Skeleton, Td, Th, Tr, cx, useToast } from "@/components/neu";
 import { api, ApiError } from "@/lib/api";
 import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
 import { useSim } from "@/lib/session";
-import type { AdaChange, AdaMode, AdaParam, AdaReason, AdaptiveView } from "@/lib/types";
+import type { AdaChange, AdaMode, AdaParam, AdaReason, AdaptiveView, DetectedEventRow, DetectionEvidence } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
 const PARAMS: AdaParam[] = ["coverage_prob", "buffer_frac", "high_threshold", "watch_threshold"];
@@ -17,6 +17,8 @@ export default function AdaptivePage() {
   const toast = useToast();
   const { bump } = useSim();
   const { data, error, reload } = useApi<AdaptiveView>("/admin/adaptive");
+  const { data: evs, reload: reloadEv } = useApi<DetectedEventRow[]>("/admin/detected-events");
+  const { data: evid } = useApi<DetectionEvidence>("/admin/detection-evidence", { live: false });
 
   if (error) return <ErrorState message={error.status === 0 ? t("common.network") : error.message} onRetry={reload} />;
   if (!data) return <div className="flex flex-col gap-5" aria-busy="true"><Skeleton className="h-24" /><Skeleton className="h-96" /></div>;
@@ -31,6 +33,10 @@ export default function AdaptivePage() {
 
   const setMode = async (mode: AdaMode) => {
     try { await api("/admin/config", { method: "PUT", body: { adaptive_mode: mode } }); toast(t("ada.mode.saved")); reload(); }
+    catch (err) { toast(err instanceof ApiError ? err.message : t("common.error"), "error"); }
+  };
+  const decideEv = async (id: number, action: "accept" | "dismiss" | "revoke") => {
+    try { await api(`/admin/detected-events/${id}/${action}`, { method: "POST" }); toast(t("ev.decided")); reloadEv(); bump(); }
     catch (err) { toast(err instanceof ApiError ? err.message : t("common.error"), "error"); }
   };
   const decide = async (id: number, action: "approve" | "dismiss" | "revert") => {
@@ -86,6 +92,56 @@ export default function AdaptivePage() {
               </li>
             ))}
           </ul>
+        )}
+      </NeuCard>
+
+      <NeuCard className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2"><Activity size={18} aria-hidden className="text-accent" /><h2 className="text-base font-bold">{t("ev.title")}</h2></div>
+        <p className="max-w-3xl text-sm text-muted">{t("ev.sub")}</p>
+        {data.mode === "auto" && <p className="text-xs text-muted">{t("ev.auto_note", { lo: fmt.num(0.63, 2), hi: fmt.num(1.6, 1) })}</p>}
+        {!evs ? <Skeleton className="h-16" /> : evs.length === 0 ? <p className="neu-inset p-4 text-sm text-muted">{t("ev.none")}</p> : (
+          <ul className="flex flex-col gap-2">
+            {evs.slice(0, 12).map((e) => (
+              <li key={e.id} className="neu-flat flex flex-col gap-2 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <NeuBadge tone={e.status === "proposed" ? "watch" : e.status === "accepted" ? "ok" : "neutral"}>{t(`ev.status.${e.status}` as DictKey)}</NeuBadge>
+                    <span className="text-xs font-semibold text-muted">{t(`ev.scope.${e.scope}` as DictKey)}</span>
+                    {e.scope === "agent" ? <Link href={`/admin/agents/${e.target}`} className="font-extrabold text-accent hover:underline">{e.target}</Link> : <b>{e.target}</b>}
+                    <span className="neu-inset-sm px-2 py-0.5 text-xs font-bold">{t(`ev.kind.${e.kind}` as DictKey)} · {t(`ev.dir.${e.direction}` as DictKey)} · ×{fmt.num(e.multiplier, 2)} ({t(`events.flow.${e.flow === "both" ? "both" : e.flow}` as DictKey)})</span>
+                    <span className="text-xs text-muted">{t("ev.window", { start: fmt.dateTiny(e.start_date), end: fmt.dateTiny(e.end_date) })}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {e.status === "proposed" && <><NeuButton variant="primary" onClick={() => decideEv(e.id, "accept")} icon={<Check size={16} aria-hidden />}>{t("ev.accept")}</NeuButton><NeuButton onClick={() => decideEv(e.id, "dismiss")} icon={<X size={16} aria-hidden />}>{t("ev.dismiss")}</NeuButton></>}
+                    {e.status === "accepted" && <NeuButton onClick={() => decideEv(e.id, "revoke")} icon={<Undo2 size={16} aria-hidden />}>{t("ev.revoke")}</NeuButton>}
+                  </div>
+                </div>
+                <ul className="flex flex-col gap-0.5 text-xs text-muted">
+                  {e.evidence.members.map((m, i) => <li key={i}>{t("ev.member", { agent: m.agent_id, days: fmt.num(m.days), z: fmt.num(m.z_last, 1), ratio: fmt.num(Math.round(100 * m.raw_ratio)) })}</li>)}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+        {evid && (
+          <div className="neu-inset flex flex-col gap-2 p-3">
+            <h3 className="text-sm font-bold">{t("ev.evidence.title")}</h3>
+            <p className="text-xs text-muted">{t("ev.evidence.sub", { start: fmt.dateTiny(evid.false_alarms.period[0]), end: fmt.dateTiny(evid.false_alarms.period[1]) })}</p>
+            <p className="text-xs">{t("ev.evidence.fa", { n: fmt.num(evid.false_alarms.detections), nights: fmt.num(evid.false_alarms.nights), rate: fmt.num(100 * evid.false_alarms.detection_rate_per_agent_night, 1), perweek: fmt.num(evid.false_alarms.proposals_per_week, 1) })}</p>
+            <NeuTable caption={t("ev.evidence.title")}>
+              <thead><tr><Th>{t("ev.evidence.col.size")}</Th><Th>{t("ev.evidence.col.rate")}</Th><Th>{t("ev.evidence.col.delay")}</Th><Th>{t("ev.evidence.col.fast")}</Th></tr></thead>
+              <tbody>
+                {Object.entries(evid.power).map(([m, v]) => (
+                  <Tr key={m}>
+                    <Td className="font-semibold">×{fmt.num(Number(m), 1)}</Td>
+                    <Td className="tabular">{fmt.num(v.detected)} / {fmt.num(v.trials)} ({fmt.pct(100 * v.detection_rate, 0)})</Td>
+                    <Td className="tabular">{v.median_delay_days === null ? "–" : t("ev.evidence.days", { n: fmt.num(v.median_delay_days) })}</Td>
+                    <Td className="tabular">{fmt.pct(100 * v.within_3_days, 0)}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </NeuTable>
+          </div>
         )}
       </NeuCard>
 
