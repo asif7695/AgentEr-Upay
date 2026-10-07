@@ -2,6 +2,7 @@
 import { ArrowDownRight, ArrowUpRight, CalendarClock, CircleCheck, ClipboardEdit, Info, Landmark, ShieldAlert, TriangleAlert, Wallet } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { NeuBadge, NeuCard, NeuGauge, NeuTable, NeuTabs, StatusBadge, Td, Th, Tr, cx } from "@/components/neu";
+import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
 import type { Action, Forecast, Reconciliation, Section, WhyItem } from "@/lib/types";
 
@@ -121,7 +122,7 @@ export function RiskPanel({ fc, size = 168 }: { fc: Forecast; size?: number }) {
               {t(k === "cash" ? "gauge.cash" : "gauge.efloat")}: {t("dep.line", { a: fmt.pct(fc.dependence.risk_independent![k]), b: fmt.pct(fc.dependence.risk_correlated![k]) })}
             </span>
           ))}
-          <span className="text-muted">{t("dep.active", { mode: t(fc.dependence.mode === "correlated" ? "dep.mode.correlated" : "dep.mode.independent") })}</span>
+          <span className="text-muted">{t("dep.active", { mode: t(`dep.mode.${fc.dependence.mode}` as DictKey) })} · {t("model.active", { model: t(`model.choice.${fc.model.choice}` as DictKey) })}</span>
         </div>
       )}
     </NeuCard>

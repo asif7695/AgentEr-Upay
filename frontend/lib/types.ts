@@ -42,6 +42,7 @@ export type Action =
   | { type: "verify_report"; gap_pct: number | null }
   | { type: "all_good" };
 
+export type DepMode = "t_copula" | "correlated" | "ar1" | "independent";
 export interface DepRisk { cash: number; efloat: number; cash_7d: number; efloat_7d: number }
 export interface Forecast {
   agent: { agent_id: string; division: string; location_type: string; capacity_cash: number; capacity_efloat: number };
@@ -56,7 +57,8 @@ export interface Forecast {
   expected_unserved: { cash: number; efloat: number; total: number; note: string };
   events: { id: number; kind: string; multiplier: number; flow: string; start_date: string; end_date: string; note: string | null; label: string }[];
   thresholds: { high: number; watch: number };
-  dependence: { mode: "correlated" | "independent"; available: boolean; risk_independent: DepRisk | null; risk_correlated: DepRisk | null; note: string };
+  model: { choice: "challenger" | "reference"; calibrated: boolean; name: string | null };
+  dependence: { mode: DepMode; available: boolean; risk_independent: DepRisk | null; risk_correlated: DepRisk | null; note: string };
   config: { buffer_frac: number; coverage_prob: number; min_order_frac: number; n_paths: number; surge_multiple: number };
   why?: Why;
   synthetic_data: boolean;
@@ -116,7 +118,7 @@ export interface AlertItem {
 export interface RulesView {
   rules: {
     buffer_frac: number; coverage_prob: number; min_order_frac: number; high_threshold: number; watch_threshold: number;
-    recon_tolerance: number; manual_report_agents: string[]; dependence_mode: "correlated" | "independent";
+    recon_tolerance: number; manual_report_agents: string[]; dependence_mode: DepMode; model_choice: "challenger" | "reference";
   };
   config_hash: string; bounds: Record<string, [number, number]>; defaults: Record<string, unknown>;
   model_risk_config: Record<string, number>; note: string;
@@ -158,3 +160,20 @@ export interface Impact {
 
 export interface ApiErrorBody { error: { code: string; message: string; details?: unknown } }
 export interface PipelineStep { date: string; ledger_rows_ingested: number; reports_requested: number; forecasts_recomputed: number; alerts_created: number; elapsed_ms: number }
+
+export interface FlowMetrics { n: number; wape: number; pinball: number; coverage80: number; coverage50: number; width80: number }
+export type FamilyMetrics = { co: FlowMetrics; ci: FlowMetrics };
+export interface PathRates { rates: Record<string, number | null>; n_windows: number; tail_error: number; coverage_error: number }
+export interface ModelEvidence {
+  stamp: string; generated: string;
+  split: { train_target_end: string; val: string; calibration: string; test: string };
+  rows: { train: number; val: number; cal: number; test: number };
+  protocol: { labels: string; metrics: string; caveat: string };
+  families: Record<string, FamilyMetrics>;
+  unseen_agents: Record<string, FamilyMetrics>;
+  unseen_event: Record<string, FamilyMetrics>;
+  conformal: Record<"co" | "ci", Record<string, Record<string, number>>>;
+  dependence: { n_origins?: number; t_nu?: number; ar1?: { rho_day: number; rho_cross: number }; method?: string; dataset?: string };
+  paths?: { protocol: string; estimate: { n_origins: number; rho_day: number; rho_cross: number; t_nu: number }; results: Record<string, { "3d": PathRates; "7d": PathRates }> };
+  active: { model_choice: "challenger" | "reference"; dependence_mode: DepMode };
+}

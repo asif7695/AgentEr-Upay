@@ -6,7 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
 import { useSim } from "@/lib/session";
-import type { AuditItem, EventItem, RulesView } from "@/lib/types";
+import type { AuditItem, DepMode, EventItem, RulesView } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
 type Field = { key: string; label: DictKey; pct: boolean };   // pct: stored as a fraction, edited as a percentage
@@ -25,14 +25,15 @@ export default function RulesPage() {
   const { data: audit, reload: reloadAudit } = useApi<AuditItem[]>("/admin/audit?limit=12", { live: false });
   const [vals, setVals] = useState<Record<string, string>>({});
   const [manual, setManual] = useState("");
-  const [depMode, setDepMode] = useState<"correlated" | "independent">("correlated");
+  const [depMode, setDepMode] = useState<DepMode>("t_copula");
+  const [modelChoice, setModelChoice] = useState<"challenger" | "reference">("challenger");
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   const load = (r: RulesView) => {
     const v: Record<string, string> = {};
     for (const f of FIELDS) { const x = r.rules[f.key as keyof RulesView["rules"]] as number; v[f.key] = String(f.pct ? +(x * 100).toFixed(2) : x); }
-    setVals(v); setManual(r.rules.manual_report_agents.join(", ")); setDepMode(r.rules.dependence_mode); setErrs({});
+    setVals(v); setManual(r.rules.manual_report_agents.join(", ")); setDepMode(r.rules.dependence_mode); setModelChoice(r.rules.model_choice); setErrs({});
   };
   useEffect(() => { if (data) load(data); }, [data]);
 
@@ -53,7 +54,7 @@ export default function RulesPage() {
     if (Object.keys(e).length) { toast(t("rules.invalid"), "error"); return; }
     const body: Record<string, unknown> = {};
     for (const f of FIELDS) body[f.key] = f.pct ? Number(vals[f.key]) / 100 : Number(vals[f.key]);
-    body.dependence_mode = depMode;
+    body.dependence_mode = depMode; body.model_choice = modelChoice;
     body.manual_report_agents = manual.split(",").map((s) => s.trim()).filter(Boolean);
     setBusy(true);
     try { await api("/admin/config", { method: "PUT", body }); toast(t("rules.saved")); reload(); reloadAudit(); bump(); }
@@ -81,8 +82,14 @@ export default function RulesPage() {
               <NeuInput key={f.key} label={`${t(f.label)}${f.pct || f.key.endsWith("threshold") ? " (%)" : ""}`} inputMode="decimal" value={vals[f.key] ?? ""}
                 onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })} error={errs[f.key]} hint={errs[f.key] ? undefined : t("rules.bounds", { lo: fmt.num(bounds(f)[0], 1), hi: fmt.num(bounds(f)[1], 1) })} />
             ))}
-            <NeuSelect label={t("rules.dep")} value={depMode} onChange={(e) => setDepMode(e.target.value as "correlated" | "independent")}>
+            <NeuSelect label={t("rules.model")} value={modelChoice} onChange={(e) => setModelChoice(e.target.value as "challenger" | "reference")}>
+              <option value="challenger">{t("model.choice.challenger")}</option>
+              <option value="reference">{t("model.choice.reference")}</option>
+            </NeuSelect>
+            <NeuSelect label={t("rules.dep")} value={depMode} onChange={(e) => setDepMode(e.target.value as DepMode)}>
+              <option value="t_copula">{t("dep.mode.t_copula")}</option>
               <option value="correlated">{t("dep.mode.correlated")}</option>
+              <option value="ar1">{t("dep.mode.ar1")}</option>
               <option value="independent">{t("dep.mode.independent")}</option>
             </NeuSelect>
             <NeuInput label={t("rules.manual")} value={manual} onChange={(e) => setManual(e.target.value)} hint={t("rules.manual.help")} />
