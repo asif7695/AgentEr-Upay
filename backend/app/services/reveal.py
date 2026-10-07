@@ -31,7 +31,7 @@ def reveal(ctx: Ctx, agent_id: str, d: date) -> dict:
     tco = np.array([gt[x.isoformat()].true_cashout_demand for x in days])
     tci = np.array([gt[x.isoformat()].true_cashin_demand for x in days])
     cum = np.cumsum(tco - tci)
-    buf_c, buf_e = br.risk_cfg_overrides(ctx.rules, a["location_type"])["buffer_frac"] * a["capacity_cash"], br.risk_cfg_overrides(ctx.rules, a["location_type"])["buffer_frac"] * a["capacity_efloat"]
+    buf_c, buf_e = br.risk_cfg_overrides(ctx.rules, a["location_type"], a["agent_id"])["buffer_frac"] * a["capacity_cash"], br.risk_cfg_overrides(ctx.rules, a["location_type"], a["agent_id"])["buffer_frac"] * a["capacity_efloat"]
     cf_cash, cf_ef = cash0 - cum, ef0 + cum
     out = []
     for i, x in enumerate(days):

@@ -68,7 +68,7 @@ def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: flo
     model = effective_model(ctx.rules["model_choice"])
     targets = [d + timedelta(days=k) for k in range(1, lf.H + 1)]
     mult = br.event_multipliers(ctx.events, agent, targets)
-    key = (agent_id, d.isoformat(), br.config_hash({**ctx.rules, "dependence_mode": mode, "model_choice": model}, agent["location_type"]), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
+    key = (agent_id, d.isoformat(), br.config_hash({**ctx.rules, "dependence_mode": mode, "model_choice": model}, agent["location_type"], agent_id), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
     hit = _lru_get(_cache, key)
     if hit is not None:
         STATS["hits"] += 1
@@ -78,7 +78,7 @@ def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: flo
     hist = ledger.history(agent_id, d)
     if len(hist) < lf.MIN_HIST:
         raise ApiError(422, "insufficient_history", "Need at least 28 days of history")
-    cfg = {**bundle["risk_config"], **br.risk_cfg_overrides(ctx.rules, agent["location_type"])}       # copy: the pickle is never mutated
+    cfg = {**bundle["risk_config"], **br.risk_cfg_overrides(ctx.rules, agent["location_type"], agent_id)}       # copy: the pickle is never mutated
     out = serving.run_forecast(bundle, hist, serving.agent_row_for_serving(bundle, agent_id), d, cash_used, efloat,
                                cfg, mult, seed_for(agent_id, d), dependence=dep, location_type=agent["location_type"])
     out["dependence_mode"], out["model"] = mode, model
@@ -86,11 +86,12 @@ def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: flo
     return out, mult
 
 
-def _section(kind, raw, d, rules, working, current, cap, buf, risk_by_day, risk_7d, runout, req_level, topup, cov=None, mult=1.0):
+def _section(kind, raw, d, rules, working, current, cap, buf, risk_by_day, risk_7d, runout, req_level, topup, cov=None, mult=1.0, thr=None):
     W = int(raw["coverage_window_days"])
     headline = float(risk_by_day[W - 1])
     by = br.topup_by_date(d, runout, working)
-    status = br.status_from_risk(headline, rules["high_threshold"], rules["watch_threshold"])
+    high, watch = thr if thr is not None else (rules["high_threshold"], rules["watch_threshold"])
+    status = br.status_from_risk(headline, high, watch)
     return dict(
         risk_pct=_r(headline, 1), risk_pct_7d=_r(risk_7d, 1), risk_by_day=[_r(x, 1) for x in risk_by_day], status=status,
         window_days=W, window_end_date=(d + timedelta(days=W)).isoformat(),
@@ -130,14 +131,15 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
     tier = agent["location_type"]
     used = raw["risk_cfg_used"]
     up_mult = br.topup_mult(rules, tier)
+    thr = br.thresholds(rules, agent_id)
     up_c = br.topup_amount(raw["recommended_cash_level"], cash, cap_c, up_mult, rules["min_order_frac"])
     up_e = br.topup_amount(raw["recommended_efloat_level"], ef, cap_e, up_mult, rules["min_order_frac"])
     cash_sec, by_c = _section("cash", raw, d, rules, working, cash, cap_c, raw["buffer_cash"], raw["cash_risk_pct_by_day"],
                               raw["cash_risk_pct_7d"], raw["likely_cash_runout_day"], raw["recommended_cash_level"],
-                              up_c, used["coverage_prob"], up_mult)
+                              up_c, used["coverage_prob"], up_mult, thr)
     ef_sec, by_e = _section("efloat", raw, d, rules, working, ef, cap_e, raw["buffer_efloat"], raw["efloat_risk_pct_by_day"],
                             raw["efloat_risk_pct_7d"], raw["likely_efloat_runout_day"], raw["recommended_efloat_level"],
-                            up_e, used["coverage_prob"], up_mult)
+                            up_e, used["coverage_prob"], up_mult, thr)
     status = br.worst_status(cash_sec["status"], ef_sec["status"])
     cap_needed = br.capital_gap(raw["recommended_cash_level"], raw["recommended_efloat_level"], cash, ef) if raw["float_insufficient"] else 0.0
 
@@ -203,7 +205,8 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
         events=[dict(id=e["id"], kind=e["kind"], multiplier=e["multiplier"], flow=e["flow"], start_date=e["start_date"], end_date=e["end_date"],
                      note=e["note"], label="manual adjustment, not learned by the model")
                 for e in br.active_events_for(ctx.events, agent, [d + timedelta(days=k) for k in range(1, lf.H + 1)])],
-        thresholds=dict(high=rules["high_threshold"], watch=rules["watch_threshold"]),
+        thresholds=dict(high=thr[0], watch=thr[1], adapted=agent_id in rules["agent_overrides"] and any(k in rules["agent_overrides"][agent_id] for k in ("high_threshold", "watch_threshold"))),
+        adaptive=dict(mode=rules["adaptive_mode"], overrides=rules["agent_overrides"].get(agent_id, {})),
         config=dict(buffer_frac=used["buffer_frac"], coverage_prob=used["coverage_prob"], min_order_frac=rules["min_order_frac"], topup_mult=up_mult, tier=tier,
                     n_paths=raw["risk_cfg_used"]["n_paths"], surge_multiple=raw["risk_cfg_used"]["surge_multiple"]),
         quantile_levels=raw["quantile_levels"],

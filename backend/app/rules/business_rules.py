@@ -31,6 +31,8 @@ DEFAULT_RULES = dict(
     buffer_by_tier={t: v["buffer"] for t, v in _OPT.items()},
     topup_mult_by_tier={t: v["up"] for t, v in _OPT.items()},     # order up to this multiple of the required level (fewer, larger trips)
     economics=economics.DEFAULT_ECONOMICS,
+    adaptive_mode="suggest",       # per-agent adaptation of coverage / buffer / alert thresholds: "off" | "suggest" (admin approves) | "auto" (within guard rails)
+    agent_overrides={},            # {agent_id: {coverage_prob?, buffer_frac?, high_threshold?, watch_threshold?}} written only by approved adaptive changes
     manual_report_agents=["A01"],  # agents whose replay report for 'today' stays pending (live-demo of the report form)
 )
 
@@ -42,6 +44,8 @@ RULE_BOUNDS = dict(
 DEPENDENCE_MODES = ("t_copula", "correlated", "ar1", "independent")
 TOPUP_MULT_BOUNDS = (1.0, 3.0)
 MODEL_CHOICES = ("challenger", "reference")
+ADAPTIVE_MODES = ("off", "suggest", "auto")
+OVERRIDE_BOUNDS = dict(coverage_prob=RULE_BOUNDS["coverage_prob"], buffer_frac=RULE_BOUNDS["buffer_frac"], high_threshold=(1.0, 100.0), watch_threshold=(0.0, 99.0))
 
 
 # ---------------------------------------------------------------- status bands --
@@ -80,6 +84,18 @@ def validate_rules(patch: dict, current: dict) -> dict:
         for t, v in m_.items():
             if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or not (lo <= v <= hi):
                 raise ValueError(f"{key}[{t}] must be a number between {lo} and {hi}")
+    if merged["adaptive_mode"] not in ADAPTIVE_MODES:
+        raise ValueError("adaptive_mode must be one of off, suggest, auto")
+    ov = merged["agent_overrides"]
+    if not isinstance(ov, dict):
+        raise ValueError("agent_overrides must map agent ids to settings")
+    for aid, vals in ov.items():
+        if not isinstance(vals, dict) or not set(vals) <= set(OVERRIDE_BOUNDS):
+            raise ValueError(f"agent_overrides[{aid}] may only set {', '.join(OVERRIDE_BOUNDS)}")
+        for k, v in vals.items():
+            lo, hi = OVERRIDE_BOUNDS[k]
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or not (lo <= v <= hi):
+                raise ValueError(f"agent_overrides[{aid}].{k} must be a number between {lo} and {hi}")
     merged["economics"] = economics.validate_economics({}, merged["economics"])
     m = merged["manual_report_agents"]
     if not isinstance(m, list) or not all(isinstance(x, str) and len(x) <= 8 for x in m):
@@ -88,11 +104,19 @@ def validate_rules(patch: dict, current: dict) -> dict:
     return merged
 
 
-def risk_cfg_overrides(rules: dict, tier: str | None = None) -> dict:
-    """The subset of rules that feed lf.risk_summary (merged onto a COPY of bundle['risk_config']). Per-tier values win over the global ones."""
-    return dict(buffer_frac=float(rules.get("buffer_by_tier", {}).get(tier, rules["buffer_frac"])),
-                coverage_prob=float(rules.get("coverage_by_tier", {}).get(tier, rules["coverage_prob"])),
+def risk_cfg_overrides(rules: dict, tier: str | None = None, agent_id: str | None = None) -> dict:
+    """The subset of rules that feed lf.risk_summary (merged onto a COPY of bundle['risk_config']).
+    Precedence: an approved per-agent adaptation > the per-tier value > the global value."""
+    ov = rules.get("agent_overrides", {}).get(agent_id, {}) if agent_id else {}
+    return dict(buffer_frac=float(ov.get("buffer_frac", rules.get("buffer_by_tier", {}).get(tier, rules["buffer_frac"]))),
+                coverage_prob=float(ov.get("coverage_prob", rules.get("coverage_by_tier", {}).get(tier, rules["coverage_prob"]))),
                 min_order_frac=float(rules["min_order_frac"]))
+
+
+def thresholds(rules: dict, agent_id: str | None = None) -> tuple[float, float]:
+    """(high, watch) alert thresholds for an agent: an approved per-agent adaptation wins over the global rule."""
+    ov = rules.get("agent_overrides", {}).get(agent_id, {}) if agent_id else {}
+    return float(ov.get("high_threshold", rules["high_threshold"])), float(ov.get("watch_threshold", rules["watch_threshold"]))
 
 
 def topup_mult(rules: dict, tier: str | None) -> float:
@@ -106,8 +130,8 @@ def topup_amount(req_level: float, current: float, cap: float, mult: float, min_
     return need if need >= min_order_frac * cap else 0.0
 
 
-def config_hash(rules: dict, tier: str | None = None) -> str:
-    return hashlib.sha1(json.dumps({**risk_cfg_overrides(rules, tier), "dep": rules["dependence_mode"], "model": rules["model_choice"]}, sort_keys=True).encode()).hexdigest()[:10]
+def config_hash(rules: dict, tier: str | None = None, agent_id: str | None = None) -> str:
+    return hashlib.sha1(json.dumps({**risk_cfg_overrides(rules, tier, agent_id), "dep": rules["dependence_mode"], "model": rules["model_choice"]}, sort_keys=True).encode()).hexdigest()[:10]
 
 
 # ------------------------------------------------------------- reconciliation --

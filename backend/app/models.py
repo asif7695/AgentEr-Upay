@@ -146,3 +146,20 @@ class User(Base):
     role = Column(String(8), nullable=False)           # admin | agent
     agent_id = Column(String(8), nullable=True)
     display_name = Column(String(40), nullable=False)
+
+
+class AdaptiveChange(Base):
+    """A proposed (or auto-applied) per-agent adaptation of coverage / buffer / alert thresholds, with the evidence that justifies it."""
+    __tablename__ = "adaptive_changes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    agent_id = Column(String(8), nullable=False)
+    created_date = Column(String(10), nullable=False)  # sim date the evidence was cut at
+    params = Column(Text, nullable=False)              # JSON {param: {from, to, prev, new}}
+    reasons = Column(Text, nullable=False)             # JSON [{code, params, text}]
+    profile = Column(Text, nullable=False)             # JSON snapshot of the behaviour profile
+    status = Column(String(12), nullable=False)        # proposed | applied | dismissed | reverted | superseded
+    mode = Column(String(8), nullable=False)           # suggest | auto
+    decided_by = Column(String(32), nullable=True)
+    decided_at = Column(String(32), nullable=True)
+    created_at = Column(String(32), nullable=False)
+    __table_args__ = (Index("ix_adaptive_agent", "agent_id", "status"),)

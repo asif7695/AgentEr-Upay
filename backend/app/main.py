@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import settings
+from .db import Base, engine
 from .errors import install_handlers
 from .ml.model_store import get_bundle
 from .routers import economics, admin, agents, core
@@ -21,6 +22,7 @@ async def lifespan(_: FastAPI):
     if res.get("seeded"):
         log.info("Seeded database: %s", res)
     get_bundle()                            # load the model bundle once
+    Base.metadata.create_all(engine)        # adds tables introduced after the database was first seeded
     ledger.load()                           # immutable ledger cache (safe columns only)
     yield
 

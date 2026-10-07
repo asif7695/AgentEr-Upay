@@ -17,7 +17,7 @@ from ..errors import ApiError
 from ..ml.model_store import default_risk_config
 from ..models import Alert, AuditLog, Event, User
 from ..rules import business_rules as br
-from ..services import dispatch, overview as overview_svc
+from ..services import adaptive, dispatch, overview as overview_svc
 from ..services.alerts import alert_dict
 from ..services.context import Ctx, audit, event_dict, ledger, now_iso, set_config
 
@@ -49,6 +49,7 @@ class ConfigPatch(BaseModel):
     recon_tolerance: float | None = Field(default=None, allow_inf_nan=False)
     dependence_mode: Literal["t_copula", "correlated", "ar1", "independent"] | None = None
     model_choice: Literal["challenger", "reference"] | None = None
+    adaptive_mode: Literal["off", "suggest", "auto"] | None = None
     manual_report_agents: list[str] | None = None
     coverage_by_tier: dict[str, float] | None = None
     buffer_by_tier: dict[str, float] | None = None
@@ -141,6 +142,18 @@ def put_config(body: ConfigPatch, user: User = Depends(require_admin), db: Sessi
     audit(db, user.username, "config_update", "config", None, changed)
     db.commit()
     return _config_view(Ctx(db))
+
+
+@router.get("/admin/adaptive")
+def adaptive_overview(date: Date | None = None, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Agent behaviour profiles, the adaptations the evidence supports, active per-agent settings and the change log."""
+    ctx = Ctx(db)
+    return adaptive.overview(ctx, date or ctx.sim_date)
+
+
+@router.post("/admin/adaptive/changes/{change_id}/{action}")
+def adaptive_decide(change_id: int, action: Literal["approve", "dismiss", "revert"], user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return adaptive.decide(Ctx(db), user.username, change_id, action)
 
 
 @router.get("/admin/events")
