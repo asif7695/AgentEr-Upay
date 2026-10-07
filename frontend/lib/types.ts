@@ -213,6 +213,22 @@ export interface DetectionEvidence {
   power: Record<string, { trials: number; detected: number; detection_rate: number; median_delay_days: number | null; within_3_days: number }>;
 }
 
+export interface AllocLine {
+  key: string; agent_id: string; division: string; tier: string; kind: "cash" | "efloat"; meaning: string; rule_amount: number; amount: number; max_amount: number;
+  reason: string; locked: boolean; protected: boolean; net_value: number; value_if_rule: number; trip_cost: number; risk_pct: number; status: Status; by_date: string; late: boolean;
+  order: Order | null;
+}
+export interface AllocTotals { orders: number; net_cash: number; expected_unserved: number; trip_cost: number; lost_cost: number; capital_cost: number; total_cost: number; feasible?: boolean; raw_net_cash?: number }
+export interface AllocationPlan {
+  date: string; settings: { cash_budget: number; efloat_budget: number; max_orders_per_division: number; protect_high_risk: boolean };
+  note: "protection_relaxed" | "infeasible_locks" | null; cost_of_protection: number | null; lines: AllocLine[];
+  totals: Record<"rule" | "simple" | "optimised" | "nothing" | "unconstrained", AllocTotals>;
+  budget_curve: { budget: number; expected_unserved: number; total_cost: number; orders: number; net_cash: number }[];
+  saving_vs_rule: number; saving_vs_simple: number; unserved_avoided_vs_simple: number; method: string;
+  assumptions: { value_per_unserved_bdt: number; capital_rate_horizon: number; horizon_days: number; source: string };
+  bounds?: Record<string, [number, number]>; defaults?: Record<string, number | boolean>;
+}
+
 export interface TierCost { orders: number; unserved: number; demand: number; stockout_days: number; service_rate: number; trips_cost: number; lost_cost: number; lost_agent: number; lost_upay: number; capital_cost: number; total: number }
 export interface PolicyNet extends TierCost { net_benefit: number }
 export interface EconTier {
