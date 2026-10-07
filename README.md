@@ -354,14 +354,14 @@ Choosing a 95% coverage target was a guess. The app now prices both sides, per a
 - **Data and model files** must stay in `files/` (or point `UPAY_FILES_DIR`, `UPAY_BUNDLE`, `UPAY_DATA_CSV` elsewhere). The API seeds SQLite from the CSV on first start.
 - **Version pinning.** `lightgbm 4.7.0`, `pandas 3.0.2` and `numpy 2.4.4` match the bundle's recorded library versions; the API logs a warning on mismatch.
 - **Manual-report demo agent.** `manual_report_agents` (default `["A01"]`) under Rules and events keeps that agent's report pending after each advance so the report form can be shown live.
-- **Brand colours.** All theme colours are CSS variables in `frontend/app/globals.css`.
+- **Brand theme.** The UI uses the upay palette throughout: upay Blue `#1A4FD6` (primary, header band, admin sidebar), upay Yellow `#FFC20E` ("do this next", planned top-ups, active navigation), Navy ink `#0B1A3F` (text and text on yellow), Cloud `#F3F6FC` (light page) and Night `#0F1B3D` (dark cards). Type is Plus Jakarta Sans with Hind Siliguri for Bangla. All colours are CSS variables in `frontend/app/globals.css`, with light and dark sets.
 - **Ports.** API 8000, web 3000. If you change the API port, set `NEXT_PUBLIC_API_URL` and `UPAY_CORS` accordingly.
 
 ## 17. Assumptions
 
 No questions were asked during the build, so these are recorded here.
 
-1. No upay logo was supplied: the logo mark is a placeholder and the warm yellow accent is assumed. The theme colour is navy `#0D1C42`.
+1. Brand colours follow the upay brand kit supplied for Phase 2. The app mark is our own "U" monogram in those colours, not upay's trademark logo.
 2. `agents_metadata.csv` was not provided; agent traits and capacities come from the dataset's static columns (identical to the bundle's agent table). Generator internals in `bundle["agents"]` are dropped immediately after `get_agent_row` and never used or shown.
 3. Some colour tokens were adjusted from the original spec to reach WCAG AA contrast for text. Chart series colours (blue and orange) were checked with a colour-blind-safe palette validator in light and dark.
 4. The ledger is the dataset: orders and "mark done" are **planning records** and do not change replayed balances.
