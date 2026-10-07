@@ -50,6 +50,10 @@ class ConfigPatch(BaseModel):
     dependence_mode: Literal["t_copula", "correlated", "ar1", "independent"] | None = None
     model_choice: Literal["challenger", "reference"] | None = None
     manual_report_agents: list[str] | None = None
+    coverage_by_tier: dict[str, float] | None = None
+    buffer_by_tier: dict[str, float] | None = None
+    topup_mult_by_tier: dict[str, float] | None = None
+    economics: dict | None = None
 
 
 class EventIn(BaseModel):
@@ -119,6 +123,14 @@ def put_config(body: ConfigPatch, user: User = Depends(require_admin), db: Sessi
     patch = body.model_dump(exclude_none=True)
     if not patch:
         raise ApiError(422, "validation_error", "No changes supplied")
+    # changing the GLOBAL coverage / buffer is an explicit "one value for everyone" decision: clear the matching per-tier overrides
+    # (re-saving an unchanged value, as the Rules form does, keeps them)
+    for glob, tier_key in (("coverage_prob", "coverage_by_tier"), ("buffer_frac", "buffer_by_tier")):
+        if glob in patch and patch[glob] != ctx.rules[glob] and tier_key not in patch:
+            patch[tier_key] = {}
+    for k in ("coverage_by_tier", "buffer_by_tier", "topup_mult_by_tier"):       # a partial map updates those tiers only; {} clears all
+        if patch.get(k):
+            patch[k] = {**ctx.rules[k], **patch[k]}
     try:
         merged = br.validate_rules(patch, ctx.rules)
     except ValueError as e:

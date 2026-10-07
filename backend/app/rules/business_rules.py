@@ -12,6 +12,10 @@ from datetime import date, timedelta
 
 import numpy as np
 
+from . import economics
+
+_OPT = economics.optimum_params(economics.DEFAULT_ECONOMICS) or {}      # cost-optimal per-tier settings under the default assumptions
+
 DEFAULT_RULES = dict(
     buffer_frac=0.10,            # "effectively out" = below 10% of capacity (risk_config.buffer_frac)
     coverage_prob=0.95,          # recommended level protects the window with this probability
@@ -21,6 +25,12 @@ DEFAULT_RULES = dict(
     recon_tolerance=0.10,        # |gap| > 10% of ledger cash -> "needs verification"
     model_choice="challenger",     # "challenger" (our retrained + calibrated model) | "reference" (the supplied bundle)
     dependence_mode="t_copula",    # multi-day path dependence in the Monte Carlo: "t_copula" | "correlated" (Gaussian) | "ar1" | "independent" (supplied default)
+    # Per agent tier (location type). Empty = fall back to the global value above. Defaults are the COST-OPTIMAL values from the ROI
+    # replay under the placeholder economics below (see /admin/economics); the admin can change or re-optimise them.
+    coverage_by_tier={t: v["coverage"] for t, v in _OPT.items()},
+    buffer_by_tier={t: v["buffer"] for t, v in _OPT.items()},
+    topup_mult_by_tier={t: v["up"] for t, v in _OPT.items()},     # order up to this multiple of the required level (fewer, larger trips)
+    economics=economics.DEFAULT_ECONOMICS,
     manual_report_agents=["A01"],  # agents whose replay report for 'today' stays pending (live-demo of the report form)
 )
 
@@ -30,6 +40,7 @@ RULE_BOUNDS = dict(
 )
 
 DEPENDENCE_MODES = ("t_copula", "correlated", "ar1", "independent")
+TOPUP_MULT_BOUNDS = (1.0, 3.0)
 MODEL_CHOICES = ("challenger", "reference")
 
 
@@ -62,6 +73,14 @@ def validate_rules(patch: dict, current: dict) -> dict:
         raise ValueError("model_choice must be 'challenger' or 'reference'")
     if merged["dependence_mode"] not in DEPENDENCE_MODES:
         raise ValueError("dependence_mode must be one of t_copula, correlated, ar1, independent")
+    for key, (lo, hi) in (("coverage_by_tier", RULE_BOUNDS["coverage_prob"]), ("buffer_by_tier", RULE_BOUNDS["buffer_frac"]), ("topup_mult_by_tier", TOPUP_MULT_BOUNDS)):
+        m_ = merged[key]
+        if not isinstance(m_, dict) or not set(m_) <= set(economics.TIERS):
+            raise ValueError(f"{key} must map agent tiers ({', '.join(economics.TIERS)}) to numbers")
+        for t, v in m_.items():
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or not (lo <= v <= hi):
+                raise ValueError(f"{key}[{t}] must be a number between {lo} and {hi}")
+    merged["economics"] = economics.validate_economics({}, merged["economics"])
     m = merged["manual_report_agents"]
     if not isinstance(m, list) or not all(isinstance(x, str) and len(x) <= 8 for x in m):
         raise ValueError("manual_report_agents must be a list of agent ids")
@@ -69,14 +88,26 @@ def validate_rules(patch: dict, current: dict) -> dict:
     return merged
 
 
-def risk_cfg_overrides(rules: dict) -> dict:
-    """The subset of rules that feed lf.risk_summary (merged onto a COPY of bundle['risk_config'])."""
-    return dict(buffer_frac=float(rules["buffer_frac"]), coverage_prob=float(rules["coverage_prob"]),
+def risk_cfg_overrides(rules: dict, tier: str | None = None) -> dict:
+    """The subset of rules that feed lf.risk_summary (merged onto a COPY of bundle['risk_config']). Per-tier values win over the global ones."""
+    return dict(buffer_frac=float(rules.get("buffer_by_tier", {}).get(tier, rules["buffer_frac"])),
+                coverage_prob=float(rules.get("coverage_by_tier", {}).get(tier, rules["coverage_prob"])),
                 min_order_frac=float(rules["min_order_frac"]))
 
 
-def config_hash(rules: dict) -> str:
-    return hashlib.sha1(json.dumps({**risk_cfg_overrides(rules), "dep": rules["dependence_mode"], "model": rules["model_choice"]}, sort_keys=True).encode()).hexdigest()[:10]
+def topup_mult(rules: dict, tier: str | None) -> float:
+    return float(rules.get("topup_mult_by_tier", {}).get(tier, 1.0))
+
+
+def topup_amount(req_level: float, current: float, cap: float, mult: float, min_order_frac: float) -> float:
+    """Order up to mult x the required level (never above capacity); ignore orders smaller than min_order_frac of capacity."""
+    target = min(cap, mult * req_level) if mult > 1.0 else req_level
+    need = max(0.0, target - current)
+    return need if need >= min_order_frac * cap else 0.0
+
+
+def config_hash(rules: dict, tier: str | None = None) -> str:
+    return hashlib.sha1(json.dumps({**risk_cfg_overrides(rules, tier), "dep": rules["dependence_mode"], "model": rules["model_choice"]}, sort_keys=True).encode()).hexdigest()[:10]
 
 
 # ------------------------------------------------------------- reconciliation --
