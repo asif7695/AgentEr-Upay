@@ -12,7 +12,7 @@ from datetime import date, timedelta
 
 import numpy as np
 
-from . import economics
+from . import allocation_rules, economics
 
 _OPT = economics.optimum_params(economics.DEFAULT_ECONOMICS) or {}      # cost-optimal per-tier settings under the default assumptions
 
@@ -31,6 +31,7 @@ DEFAULT_RULES = dict(
     buffer_by_tier={t: v["buffer"] for t, v in _OPT.items()},
     topup_mult_by_tier={t: v["up"] for t, v in _OPT.items()},     # order up to this multiple of the required level (fewer, larger trips)
     economics=economics.DEFAULT_ECONOMICS,
+    allocation=allocation_rules.DEFAULT_ALLOCATION,   # distributor budgets for the network-wide allocation (placeholders, editable on the Dispatch page)
     adaptive_mode="suggest",       # per-agent adaptation of coverage / buffer / alert thresholds: "off" | "suggest" (admin approves) | "auto" (within guard rails)
     agent_overrides={},            # {agent_id: {coverage_prob?, buffer_frac?, high_threshold?, watch_threshold?}} written only by approved adaptive changes
     manual_report_agents=["A01"],  # agents whose replay report for 'today' stays pending (live-demo of the report form)
@@ -96,6 +97,7 @@ def validate_rules(patch: dict, current: dict) -> dict:
             lo, hi = OVERRIDE_BOUNDS[k]
             if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or not (lo <= v <= hi):
                 raise ValueError(f"agent_overrides[{aid}].{k} must be a number between {lo} and {hi}")
+    merged["allocation"] = allocation_rules.validate_allocation({}, merged["allocation"])
     merged["economics"] = economics.validate_economics({}, merged["economics"])
     m = merged["manual_report_agents"]
     if not isinstance(m, list) or not all(isinstance(x, str) and len(x) <= 8 for x in m):

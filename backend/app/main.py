@@ -9,7 +9,7 @@ from . import settings
 from .db import Base, engine
 from .errors import install_handlers
 from .ml.model_store import get_bundle
-from .routers import economics, admin, agents, core
+from .routers import allocation, economics, admin, agents, core
 from .seeding import seed
 from .services.context import ledger
 
@@ -36,3 +36,4 @@ app.include_router(core.router)
 app.include_router(agents.router)
 app.include_router(admin.router)
 app.include_router(economics.router)
+app.include_router(allocation.router)

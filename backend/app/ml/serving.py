@@ -89,8 +89,10 @@ def run_forecast(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, orig
     # model-estimated unserved demand inside the coverage window (per path, the amount the balance cannot cover)
     short_c = np.maximum(0.0, cum[:, :W].max(axis=1) - cash)
     short_e = np.maximum(0.0, (-cum[:, :W]).max(axis=1) - efloat)
+    grid = np.linspace(0.0, 100.0, 201)          # distribution of the 7-day PEAK net cash-out / cash-in: the allocation optimiser prices any order size from it
+    peaks = dict(cash=np.percentile(cum.max(axis=1), grid), efloat=np.percentile((-cum).max(axis=1), grid))
     out.update(
-        mean_cashout=co.mean(0), mean_cashin=ci.mean(0),
+        peaks=peaks, mean_cashout=co.mean(0), mean_cashin=ci.mean(0),
         bands=dict(cash=dict(p10=cb[0], p50=cb[1], p90=cb[2]), efloat=dict(p10=eb[0], p50=eb[1], p90=eb[2])),
         expected_unserved=dict(cash=float(short_c.mean()), efloat=float(short_e.mean())),
         cap_cash=cap_c, cap_efloat=cap_e, buffer_cash=cfg["buffer_frac"] * cap_c, buffer_efloat=cfg["buffer_frac"] * cap_e,
