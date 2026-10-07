@@ -232,4 +232,4 @@ def print_table(table):
 
 
 if __name__ == "__main__":
-    {"main": stage_main, "unseen": stage_unseen, "paths": stage_paths, "assemble": stage_assemble}[sys.argv[1]]()
+    {"main": stage_main, "unseen": stage_unseen, "paths": stage_paths, "assemble": stage_assemble, "economics": lambda: __import__("ml_train.economics_prep", fromlist=["prepare"]).prepare()}[sys.argv[1]]()
