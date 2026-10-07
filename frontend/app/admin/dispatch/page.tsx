@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, NeuBadge, NeuButton, NeuCard, NeuInput, NeuModa
 import { api, ApiError } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useSim } from "@/lib/session";
+import { shown, toData } from "@/lib/timeshift";
 import type { DispatchItem, DispatchPlan, Order } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
 
@@ -131,7 +132,7 @@ export default function DispatchPage() {
         {sched && (
           <div className="flex flex-col gap-3">
             <p className="text-sm">{sched.agent_id} · {sched.kind === "cash" ? t("term.cash") : t("term.efloat")} · <b>{fmt.bdt(sched.amount)}</b></p>
-            <NeuInput type="date" label={t("disp.sched_for")} value={schedDate} min={sim?.date} onChange={(e) => setSchedDate(e.target.value)} />
+            <NeuInput type="date" label={t("disp.sched_for")} value={shown(schedDate)} min={sim ? shown(sim.date) : undefined} onChange={(e) => setSchedDate(toData(e.target.value))} />
             <p className="text-xs text-muted">{t("disp.by")}: {fmt.date(sched.by_date)}</p>
           </div>
         )}

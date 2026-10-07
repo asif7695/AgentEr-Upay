@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { NeuButton, NeuInput, useToast } from "@/components/neu";
 import { useI18n } from "@/lib/i18n";
 import { useSim } from "@/lib/session";
+import { shown, toData } from "@/lib/timeshift";
 
 /** Admin top-bar controls: simulation clock, advance 1 day, jump to date, auto-play. */
 export function SimControls() {
@@ -40,7 +41,7 @@ export function SimControls() {
         {playing ? t("sim.pause") : t("sim.play")}
       </NeuButton>
       <div className="flex items-end gap-2">
-        <NeuInput type="date" aria-label={t("sim.jump")} value={target} min={sim.min_date} max={sim.max_date} onChange={(e) => setTarget(e.target.value)} error={err} className="w-44" />
+        <NeuInput type="date" aria-label={t("sim.jump")} value={shown(target)} min={shown(sim.min_date)} max={shown(sim.max_date)} onChange={(e) => setTarget(toData(e.target.value))} error={err} className="w-44" />
         <NeuButton onClick={doJump} disabled={busy}>{t("sim.go")}</NeuButton>
       </div>
       <NeuButton onClick={() => run(() => jump("2025-09-01"))} disabled={busy} aria-label={t("sim.reset")} title={t("sim.reset")} className="!px-0"><RotateCcw size={18} aria-hidden /></NeuButton>

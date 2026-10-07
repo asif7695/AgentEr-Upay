@@ -386,6 +386,7 @@ Choosing a 95% coverage target was a guess. The app now prices both sides, per a
 
 No questions were asked during the build, so these are recorded here.
 
+1. **Dates are shown at today's time frame.** The dataset is a replay of 2025, so every date the UI shows is moved forward by a whole number of weeks (weekdays stay correct) until the simulation start lands next to the real current date (`frontend/lib/timeshift.ts`). The data, the API and the calendar features (public holidays, Eid) stay on the 2025 dates, so a holiday flag follows the 2025 calendar even though the date shown is later. Date inputs convert both ways.
 1. Brand colours follow the upay brand kit supplied for Phase 2. The app mark is our own "U" monogram in those colours, not upay's trademark logo.
 2. `agents_metadata.csv` was not provided; agent traits and capacities come from the dataset's static columns (identical to the bundle's agent table). Generator internals in `bundle["agents"]` are dropped immediately after `get_agent_row` and never used or shown.
 3. Some colour tokens were adjusted from the original spec to reach WCAG AA contrast for text. Chart series colours (blue and orange) were checked with a colour-blind-safe palette validator in light and dark.

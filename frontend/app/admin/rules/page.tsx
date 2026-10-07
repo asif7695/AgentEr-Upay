@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, NeuBadge, NeuButton, NeuCard, NeuInput, NeuSele
 import { api, ApiError } from "@/lib/api";
 import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
+import { shown, toData } from "@/lib/timeshift";
 import { useSim } from "@/lib/session";
 import type { AuditItem, DepMode, EventItem, RulesView } from "@/lib/types";
 import { useApi } from "@/lib/useApi";
@@ -175,8 +176,8 @@ function EventsSection({ events, reload }: { events: EventItem[] | null; reload:
           {["both", "cashout", "cashin"].map((k) => <option key={k} value={k}>{t(`events.flow.${k}` as DictKey)}</option>)}
         </NeuSelect>
         <NeuInput label={t("events.mult")} inputMode="decimal" value={f.multiplier} onChange={(e) => setF({ ...f, multiplier: e.target.value })} hint={t("events.mult.help")} />
-        <NeuInput label={t("events.start")} type="date" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} />
-        <NeuInput label={t("events.end")} type="date" value={f.end} min={f.start} onChange={(e) => setF({ ...f, end: e.target.value })} />
+        <NeuInput label={t("events.start")} type="date" value={shown(f.start)} onChange={(e) => setF({ ...f, start: toData(e.target.value) })} />
+        <NeuInput label={t("events.end")} type="date" value={shown(f.end)} min={shown(f.start)} onChange={(e) => setF({ ...f, end: toData(e.target.value) })} />
         <NeuInput label={`${t("events.note")} (${t("common.optional")})`} maxLength={200} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
         <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-4">
           {err && <p role="alert" className="text-sm font-medium text-high">{err}</p>}
