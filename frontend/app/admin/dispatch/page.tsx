@@ -3,6 +3,7 @@ import { Check, CheckCheck, Clock, Landmark, Truck, TriangleAlert, XCircle } fro
 import Link from "next/link";
 import { useState } from "react";
 import { OptimisedPlan } from "@/components/dispatch/OptimisedPlan";
+import { RoutesView } from "@/components/dispatch/RoutesView";
 import { EmptyState, ErrorState, NeuBadge, NeuButton, NeuCard, NeuInput, NeuModal, NeuStat, NeuTable, NeuTabs, Skeleton, StatusBadge, Td, Th, Tr, cx, useToast } from "@/components/neu";
 import { api, ApiError } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -19,7 +20,7 @@ export default function DispatchPage() {
   const [sched, setSched] = useState<DispatchItem | null>(null);
   const [schedDate, setSchedDate] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [tab, setTab] = useState<"opt" | "rule">("opt");
+  const [tab, setTab] = useState<"opt" | "routes" | "rule">("opt");
 
   const refresh = () => { reload(); reloadOrders(); };
   const act = async (key: string, fn: () => Promise<unknown>, okMsg: string) => {
@@ -39,8 +40,9 @@ export default function DispatchPage() {
         <h1 className="text-2xl font-extrabold">{t("disp.title")}</h1>
         <p className="text-sm text-muted">{t("disp.sub", { date: fmt.dateLong(data.next_working_day) })}</p>
       </div>
-      <NeuTabs label={t("disp.title")} value={tab} onChange={setTab} tabs={[{ id: "opt", label: t("alloc.tab.opt") }, { id: "rule", label: t("alloc.tab.rule") }]} />
+      <NeuTabs label={t("disp.title")} value={tab} onChange={setTab} tabs={[{ id: "opt", label: t("alloc.tab.opt") }, { id: "routes", label: t("routes.tab") }, { id: "rule", label: t("alloc.tab.rule") }]} />
       {tab === "opt" && <OptimisedPlan onOrders={refresh} />}
+      {tab === "routes" && <RoutesView />}
       {tab === "rule" && <>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <NeuStat label={t("disp.cash_total")} value={data.totals.cash} format={fmt.bdt} tone="accent" note={t("fc.rec.cash_meaning")} />

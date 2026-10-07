@@ -229,6 +229,20 @@ export interface AllocationPlan {
   bounds?: Record<string, [number, number]>; defaults?: Record<string, number | boolean>;
 }
 
+export interface RouteStop { key: string; agent_id: string; kind: "cash" | "efloat"; amount: number; weight: number; lat: number; lon: number; eta_min: number; leg_km: number }
+export interface RouteView {
+  date: string; synthetic_geography: boolean; note: string; bounds: Record<string, [number, number]>;
+  settings: { vehicles_per_division: number; vehicle_cash_limit: number; speed_kmh: number; service_minutes: number; day_hours: number };
+  totals: { distance_km: number; naive_km: number; saving_km: number; stops: number; vehicles: number; unrouted: number };
+  divisions: { division: string; depot: { lat: number; lon: number }; distance_km: number; naive_km: number; saving_km: number;
+    routes: { vehicle: number; distance_km: number; duration_min: number; cash_out: number; cash_in: number; stops: RouteStop[] }[];
+    unrouted: { key: string; agent_id: string; kind: string; amount: number; reason: "over_capacity" | "no_vehicle" | "no_time" }[] }[];
+}
+export interface RoutingEvidence {
+  stamp: string; rule: string;
+  rows: { vehicles_per_division: number; stops: number; optimised_km: number; id_order_km: number; saving_vs_id_order_pct: number; priority_waiting_saving_pct: number }[];
+}
+
 export interface TierCost { orders: number; unserved: number; demand: number; stockout_days: number; service_rate: number; trips_cost: number; lost_cost: number; lost_agent: number; lost_upay: number; capital_cost: number; total: number }
 export interface PolicyNet extends TierCost { net_benefit: number }
 export interface EconTier {
