@@ -1,7 +1,7 @@
 "use client";
-import { ArrowDownRight, ArrowUpRight, CalendarClock, CircleCheck, ClipboardEdit, Info, Landmark, ShieldAlert, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarClock, ChevronRight, CircleCheck, ClipboardEdit, Info, Landmark, ShieldAlert, TriangleAlert, Wallet } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { NeuBadge, NeuCard, NeuGauge, NeuTable, NeuTabs, StatusBadge, Td, Th, Tr, cx } from "@/components/neu";
+import { NeuBadge, NeuButton, NeuCard, NeuGauge, NeuTable, NeuTabs, StatusBadge, Td, Th, Tr, cx } from "@/components/neu";
 import type { DictKey } from "@/lib/dict.en";
 import { useI18n } from "@/lib/i18n";
 import type { Action, Forecast, Reconciliation, Section, WhyItem } from "@/lib/types";
@@ -24,35 +24,37 @@ export function useActionText() {
 const TONE = { high: "text-high", watch: "text-watch", ok: "text-ok", accent: "text-accent" } as const;
 
 /** "Do this next": the single most useful action (top-ups first), others listed beneath. */
-export function ActionCard({ fc, onNavigate }: { fc: Forecast; onNavigate?: (a: Action) => void }) {
+export function ActionCard({ fc, onNavigate, cta }: { fc: Forecast; onNavigate?: (a: Action) => void; cta?: string }) {
   const { t } = useI18n();
   const text = useActionText();
   const [first, ...rest] = fc.actions;
   const p = text(first);
   const late = fc.actions.some((a) => (a.type === "cash_topup" || a.type === "efloat_topup") && a.late);
   const emergency = fc.actions.some((a) => (a.type === "cash_topup" || a.type === "efloat_topup") && a.order_type === "emergency");
+  const highlight = first.type !== "all_good";   // a real task: upay-yellow card, navy ink
   return (
-    <NeuCard className="flex flex-col gap-3" aria-labelledby="next-title">
+    <NeuCard variant={highlight ? "yellow" : "raised"} className="flex flex-col gap-3" aria-labelledby="next-title">
       <div className="flex items-center justify-between gap-2">
         <h2 id="next-title" className="text-xs font-bold uppercase tracking-wide text-muted">{t("home.next")}</h2>
-        {emergency && <NeuBadge tone="high" icon={<TriangleAlert size={13} aria-hidden />}>{t("order.emergency")}</NeuBadge>}
+        {emergency && <NeuBadge tone="ink" icon={<TriangleAlert size={13} aria-hidden />}>{t("order.emergency")}</NeuBadge>}
       </div>
       <div className="flex items-start gap-3">
-        <span className={cx("neu-inset grid h-12 w-12 shrink-0 place-items-center", TONE[p.tone])}>{p.icon}</span>
+        <span className={cx("grid h-12 w-12 shrink-0 place-items-center rounded-xl", highlight ? "bg-white text-brand" : cx("neu-inset", TONE[p.tone]))}>{p.icon}</span>
         <div className="min-w-0">
           <p className="text-lg font-bold leading-snug">{p.title}</p>
           {p.sub && <p className="mt-1 text-sm text-muted">{p.sub}</p>}
         </div>
       </div>
-      {late && <p className="flex items-start gap-2 text-sm font-medium text-watch"><ShieldAlert size={16} className="mt-0.5 shrink-0" aria-hidden />{t("action.late")}</p>}
+      {late && <p className={cx("flex items-start gap-2 text-sm font-semibold", highlight ? "" : "text-watch")}><ShieldAlert size={16} className="mt-0.5 shrink-0" aria-hidden />{t("action.late")}</p>}
       {rest.filter((a) => a.type !== "all_good").map((a, i) => {
         const x = text(a);
         return (
-          <button key={i} onClick={() => onNavigate?.(a)} className="neu-flat flex min-h-11 items-center gap-3 px-3 py-2 text-left text-sm font-semibold">
-            <span className={TONE[x.tone]}>{x.icon}</span><span>{x.title}</span>
+          <button key={i} onClick={() => onNavigate?.(a)} className={cx("flex min-h-11 items-center gap-3 px-3 py-2 text-left text-sm font-semibold", highlight ? "rounded-xl border border-[rgba(11,26,63,.25)] bg-white/45 hover:bg-white/70" : "neu-flat")}>
+            <span className={highlight ? "" : TONE[x.tone]}>{x.icon}</span><span>{x.title}</span>
           </button>
         );
       })}
+      {cta && highlight && onNavigate && <NeuButton variant="ink" className="w-full" onClick={() => onNavigate(first)}>{cta}<ChevronRight size={18} aria-hidden /></NeuButton>}
     </NeuCard>
   );
 }
@@ -65,7 +67,7 @@ export function ReconBadge({ rec }: { rec: Pick<Reconciliation, "status"> }) {
   return <NeuBadge tone={tone} icon={<Icon size={13} aria-hidden />}>{t(`rec.status.${rec.status}` as const)}</NeuBadge>;
 }
 
-export function ReconCard({ rec, tolerance = 10, compact = false }: { rec: Reconciliation; tolerance?: number; compact?: boolean }) {
+export function ReconCard({ rec, tolerance = 10, compact = false, action }: { rec: Reconciliation; tolerance?: number; compact?: boolean; action?: { label: string; onClick: () => void } }) {
   const { t, fmt } = useI18n();
   const warn = rec.status === "pending" || rec.status === "missing" ? t("rec.warn.estimated") : rec.status === "needs_verification" ? t("rec.warn.verify", { tol: fmt.num(tolerance) }) : null;
   return (
@@ -83,6 +85,7 @@ export function ReconCard({ rec, tolerance = 10, compact = false }: { rec: Recon
           <Fact label={t("rec.used")} value={`${fmt.bdt(rec.cash_used)} · ${t(`rec.source.${rec.cash_source}` as const)}`} />
         </dl>
       )}
+      {action && rec.status !== "confirmed" && <NeuButton variant="primary" className="w-full" icon={<ClipboardEdit size={18} aria-hidden />} onClick={action.onClick}>{action.label}</NeuButton>}
     </NeuCard>
   );
 }

@@ -31,8 +31,8 @@ export function AlertList({ alerts, onAck, showAgent = true }: { alerts: AlertIt
         const key = `alerts.type.${a.type}` as DictKey;
         return (
           <li key={a.id} className={cx("neu-flat flex flex-wrap items-center justify-between gap-3 px-3 py-2.5", a.status === "acked" && "opacity-70")}>
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <span className="mt-0.5 shrink-0"><Icon size={18} aria-hidden className={a.severity === "high" ? "text-high" : a.severity === "watch" ? "text-watch" : "text-muted"} /></span>
+            <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+              <span className={cx("pill grid h-9 w-9 shrink-0 place-items-center !rounded-xl", a.severity === "high" ? "pill-high text-high" : a.severity === "watch" ? "pill-watch text-watch" : "text-muted")}><Icon size={17} aria-hidden /></span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <NeuBadge tone={SEV_TONE[a.severity]}>{t(`alerts.sev.${a.severity}` as const)}</NeuBadge>

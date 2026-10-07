@@ -12,17 +12,17 @@ export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Bool
 
 /* ------------------------------------------------------------------ NeuCard */
 interface CardProps extends HTMLAttributes<HTMLElement> {
-  variant?: "raised" | "inset" | "flat" | "small"; as?: ElementType; pad?: boolean; lift?: boolean;
+  variant?: "raised" | "inset" | "flat" | "small" | "yellow" | "blue"; as?: ElementType; pad?: boolean; lift?: boolean;
 }
 export function NeuCard({ variant = "raised", as = "div", pad = true, lift = false, className, children, ...rest }: CardProps) {
-  const base = { raised: "neu-raised", inset: "neu-inset", flat: "neu-flat", small: "neu-raised-sm" }[variant];
+  const base = { raised: "neu-raised", inset: "neu-inset", flat: "neu-flat", small: "neu-raised-sm", yellow: "card-yellow", blue: "card-blue" }[variant];
   return createElement(as, {
     className: cx(base, pad && "p-5", lift && "transition-colors duration-150 hover:border-[var(--muted)]", className), ...rest,
   }, children);
 }
 
 /* ---------------------------------------------------------------- NeuButton */
-interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> { variant?: "default" | "primary" | "danger"; loading?: boolean; icon?: ReactNode }
+interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> { variant?: "default" | "primary" | "danger" | "yellow" | "ink"; loading?: boolean; icon?: ReactNode }
 export function NeuButton({ variant = "default", loading, icon, className, children, disabled, type = "button", ...rest }: BtnProps) {
   return (
     <button type={type} className={cx("neu-btn", variant !== "default" && variant, className)} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
@@ -98,6 +98,7 @@ export function NeuTabs<T extends string>({ tabs, value, onChange, label, classN
 const STATUS_ICON = { HIGH: TriangleAlert, WATCH: Eye, OK: CircleCheck } as const;
 const STATUS_COLOR = { HIGH: "var(--high)", WATCH: "var(--watch)", OK: "var(--ok)" } as const;
 const STATUS_TEXT = { HIGH: "text-high", WATCH: "text-watch", OK: "text-ok" } as const;
+const STATUS_PILL = { HIGH: "pill-high", WATCH: "pill-watch", OK: "pill-ok" } as const;
 export const statusColor = (s: Status) => STATUS_COLOR[s];
 
 /** Status is never colour-only: every badge has an icon and a text label. */
@@ -105,16 +106,16 @@ export function StatusBadge({ status, size = "md", label }: { status: Status; si
   const { t } = useI18n();
   const Icon = STATUS_ICON[status];
   return (
-    <span className={cx("neu-inset-sm inline-flex items-center gap-1.5 font-semibold", STATUS_TEXT[status], size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm")}>
+    <span className={cx("pill inline-flex items-center gap-1.5 font-bold", STATUS_PILL[status], STATUS_TEXT[status], size === "sm" ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm")}>
       <Icon aria-hidden size={size === "sm" ? 14 : 16} strokeWidth={2.4} style={{ color: STATUS_COLOR[status] }} />
       {label ?? t(`status.${status}` as const)}
     </span>
   );
 }
 
-export function NeuBadge({ children, tone = "neutral", icon, className }: { children: ReactNode; tone?: "neutral" | "accent" | "ok" | "watch" | "high"; icon?: ReactNode; className?: string }) {
-  const tones = { neutral: "text-muted", accent: "text-accent", ok: "text-ok", watch: "text-watch", high: "text-high" };
-  return <span className={cx("neu-inset-sm inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold", tones[tone], className)}>{icon}{children}</span>;
+export function NeuBadge({ children, tone = "neutral", icon, className }: { children: ReactNode; tone?: "neutral" | "accent" | "ok" | "watch" | "high" | "ink"; icon?: ReactNode; className?: string }) {
+  const tones = { neutral: "text-muted", accent: "pill-accent text-accent", ok: "pill-ok text-ok", watch: "pill-watch text-watch", high: "pill-high text-high", ink: "pill-ink" };
+  return <span className={cx("pill inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-bold", tones[tone], className)}>{icon}{children}</span>;
 }
 
 /* ---------------------------------------------------------------- Skeleton */

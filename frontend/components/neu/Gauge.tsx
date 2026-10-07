@@ -34,8 +34,7 @@ export function NeuGauge({ value, status, title, subtitle, thresholds = { watch:
   };
   return (
     <figure className="flex w-full min-w-0 flex-col items-center gap-3 text-center" aria-label={`${title}: ${fmt.pct(value)}`}>
-      <div className="neu-raised relative grid w-full place-items-center rounded-full" style={{ maxWidth: size + 16, aspectRatio: "1 / 1", borderRadius: 9999 }}>
-        <div className="neu-inset absolute inset-[5%] rounded-full" style={{ borderRadius: 9999 }} aria-hidden />
+      <div className="relative grid w-full place-items-center rounded-full" style={{ maxWidth: size + 16, aspectRatio: "1 / 1", borderRadius: 9999 }}>
         <svg viewBox={`0 0 ${size} ${size}`} className="relative h-[92%] w-[92%]" role="img" aria-hidden>
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--hairline)" strokeWidth={stroke} strokeLinecap="round"
             strokeDasharray={`${arc} ${C}`} transform={`rotate(135 ${size / 2} ${size / 2})`} />
