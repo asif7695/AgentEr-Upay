@@ -19,6 +19,7 @@ DEFAULT_RULES = dict(
     high_threshold=50.0,         # risk >= 50%  -> HIGH
     watch_threshold=30.0,        # 30-50%       -> WATCH ; below -> OK
     recon_tolerance=0.10,        # |gap| > 10% of ledger cash -> "needs verification"
+    dependence_mode="correlated",  # "correlated": day-to-day + cross-flow dependence in the Monte Carlo | "independent": supplied default
     manual_report_agents=["A01"],  # agents whose replay report for 'today' stays pending (live-demo of the report form)
 )
 
@@ -26,6 +27,9 @@ RULE_BOUNDS = dict(
     buffer_frac=(0.0, 0.5), coverage_prob=(0.5, 0.999), min_order_frac=(0.0, 0.5),
     high_threshold=(1.0, 100.0), watch_threshold=(0.0, 99.0), recon_tolerance=(0.01, 0.5),
 )
+
+DEPENDENCE_MODES = ("correlated", "independent")
+
 
 # ---------------------------------------------------------------- status bands --
 def status_from_risk(risk_pct: float, high: float, watch: float) -> str:
@@ -52,6 +56,8 @@ def validate_rules(patch: dict, current: dict) -> dict:
             raise ValueError(f"{k} must be a number between {lo} and {hi}")
     if merged["watch_threshold"] >= merged["high_threshold"]:
         raise ValueError("watch_threshold must be below high_threshold")
+    if merged["dependence_mode"] not in DEPENDENCE_MODES:
+        raise ValueError("dependence_mode must be 'correlated' or 'independent'")
     m = merged["manual_report_agents"]
     if not isinstance(m, list) or not all(isinstance(x, str) and len(x) <= 8 for x in m):
         raise ValueError("manual_report_agents must be a list of agent ids")
@@ -66,7 +72,7 @@ def risk_cfg_overrides(rules: dict) -> dict:
 
 
 def config_hash(rules: dict) -> str:
-    return hashlib.sha1(json.dumps(risk_cfg_overrides(rules), sort_keys=True).encode()).hexdigest()[:10]
+    return hashlib.sha1(json.dumps({**risk_cfg_overrides(rules), "dep": rules["dependence_mode"]}, sort_keys=True).encode()).hexdigest()[:10]
 
 
 # ------------------------------------------------------------- reconciliation --

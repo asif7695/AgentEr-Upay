@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from . import liquidity_forecaster as lf
+from .dependence import CopulaRNG
 from .model_store import GENERATOR_INTERNALS
 
 # reverse lookup "Label" -> feature column for explain_prediction output (labels must be unique)
@@ -52,8 +53,10 @@ def serving_features(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, 
 
 
 def run_forecast(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, origin, cash: float, efloat: float,
-                 risk_cfg: dict, event_mult: np.ndarray | None = None, seed: int = 0) -> dict:
-    """Full forecast. With event_mult=None this equals lf.forecast_agent(..., seed) numerically (tested)."""
+                 risk_cfg: dict, event_mult: np.ndarray | None = None, seed: int = 0,
+                 dependence: np.ndarray | None = None) -> dict:
+    """Full forecast. With event_mult=None and dependence=None this equals lf.forecast_agent(..., seed) numerically (tested).
+    dependence: optional 14x14 correlation (see ml/dependence.py); the supplied engine runs unchanged on correlated draws."""
     f = serving_features(bundle, history, agent_row, origin, cash, efloat)
     q = lf.predict_quantiles(bundle, f)
     q_co, q_ci = q["co"], q["ci"]
@@ -63,11 +66,12 @@ def run_forecast(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, orig
     r = f.iloc[0]
     cap_c, cap_e = float(r["cap_cash"]), float(r["cap_ef"])
     cfg = {**lf.DEFAULT_RISK_CONFIG, **risk_cfg}
+    make_rng = (lambda: np.random.default_rng(seed)) if dependence is None else (lambda: CopulaRNG(seed, dependence, cfg["n_paths"]))
     out = lf.risk_summary(q_co, q_ci, bundle["quantiles"], cash, efloat, cap_c, cap_e, int(r["closed_ahead_origin"]),
-                          r["co_scale"], r["ci_scale"], risk_cfg, np.random.default_rng(seed))
+                          r["co_scale"], r["ci_scale"], risk_cfg, make_rng())
 
     # Balance projection bands from the SAME Monte Carlo paths as the risk numbers (same seed, same first rng draw).
-    co, ci = lf.sample_flows(q_co, q_ci, bundle["quantiles"], cfg["n_paths"], np.random.default_rng(seed))
+    co, ci = lf.sample_flows(q_co, q_ci, bundle["quantiles"], cfg["n_paths"], make_rng())
     cum = np.cumsum(co - ci, axis=1)
     cash_path, ef_path = cash - cum, efloat + cum
     W = int(out["coverage_window_days"])

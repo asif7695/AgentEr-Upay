@@ -46,6 +46,7 @@ class ConfigPatch(BaseModel):
     high_threshold: float | None = Field(default=None, allow_inf_nan=False)
     watch_threshold: float | None = Field(default=None, allow_inf_nan=False)
     recon_tolerance: float | None = Field(default=None, allow_inf_nan=False)
+    dependence_mode: Literal["correlated", "independent"] | None = None
     manual_report_agents: list[str] | None = None
 
 

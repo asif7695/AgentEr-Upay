@@ -16,6 +16,7 @@ from .. import settings
 from ..errors import ApiError
 from ..ml import liquidity_forecaster as lf
 from ..ml import serving
+from ..ml.dependence import load_corr
 from ..ml.model_store import get_bundle
 from ..rules import business_rules as br
 from .context import Ctx, ledger
@@ -57,11 +58,16 @@ def _calendar(d: date) -> dict:
     return {r.date.date(): dict(working=bool(r.is_working_day), holiday=bool(r.is_holiday)) for r in cal.itertuples()}
 
 
-def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: float) -> tuple[dict, np.ndarray]:
+def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: float,
+                 mode: str | None = None) -> tuple[dict, np.ndarray]:
+    """mode: "correlated" | "independent" (default: the admin rule). Falls back to independent if no matrix is available."""
     agent = ctx.agent(agent_id)
+    mode = mode or ctx.rules["dependence_mode"]
+    corr = load_corr(agent["location_type"]) if mode == "correlated" else None
+    mode = "correlated" if corr is not None else "independent"
     targets = [d + timedelta(days=k) for k in range(1, lf.H + 1)]
     mult = br.event_multipliers(ctx.events, agent, targets)
-    key = (agent_id, d.isoformat(), br.config_hash(ctx.rules), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
+    key = (agent_id, d.isoformat(), br.config_hash({**ctx.rules, "dependence_mode": mode}), int(round(cash_used)), hashlib.sha1(mult.tobytes()).hexdigest()[:8])
     hit = _lru_get(_cache, key)
     if hit is not None:
         STATS["hits"] += 1
@@ -73,7 +79,8 @@ def raw_forecast(ctx: Ctx, agent_id: str, d: date, cash_used: float, efloat: flo
         raise ApiError(422, "insufficient_history", "Need at least 28 days of history")
     cfg = {**bundle["risk_config"], **br.risk_cfg_overrides(ctx.rules)}       # copy: the pickle is never mutated
     out = serving.run_forecast(bundle, hist, serving.agent_row_for_serving(bundle, agent_id), d, cash_used, efloat,
-                               cfg, mult, seed_for(agent_id, d))
+                               cfg, mult, seed_for(agent_id, d), dependence=corr)
+    out["dependence_mode"] = mode
     _lru_put(_cache, key, out)
     return out, mult
 
@@ -96,7 +103,15 @@ def _section(kind, raw, d, rules, working, current, cap, buf, risk_by_day, risk_
     ), by
 
 
-def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False) -> dict:
+def _dep_risk(r: dict | None, W: int) -> dict | None:
+    if r is None:
+        return None
+    return dict(cash=_r(r["cash_risk_pct_by_day"][W - 1], 1), efloat=_r(r["efloat_risk_pct_by_day"][W - 1], 1),
+                cash_7d=_r(r["cash_risk_pct_7d"], 1), efloat_7d=_r(r["efloat_risk_pct_7d"], 1))
+
+
+def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compare: bool = False) -> dict:
+    """compare=True also runs the other dependence mode (one extra MC run) for the independent-vs-correlated line."""
     agent_id = agent_id.upper()
     ctx.check_date(d)
     agent = ctx.agent(agent_id)
@@ -154,6 +169,16 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False) -> dic
         actions.append(dict(type="all_good"))
 
     unserved = raw["expected_unserved"]
+    W0 = int(raw["coverage_window_days"])
+    by_mode = {raw["dependence_mode"]: raw}
+    if compare:
+        alt, _ = raw_forecast(ctx, agent_id, d, cash, ef, "independent" if raw["dependence_mode"] == "correlated" else "correlated")
+        by_mode[alt["dependence_mode"]] = alt
+    dependence = dict(
+        mode=raw["dependence_mode"], available=("correlated" in by_mode),
+        risk_independent=_dep_risk(by_mode.get("independent"), W0), risk_correlated=_dep_risk(by_mode.get("correlated"), W0),
+        note="Correlated mode lets a high-demand day raise the next days' demand (Gaussian copula on the model's residuals). "
+             "The supplied risk engine is unchanged.")
     payload = dict(
         agent=dict(agent_id=agent_id, division=agent["division"], location_type=agent["location_type"],
                    capacity_cash=_r(cap_c), capacity_efloat=_r(cap_e)),
@@ -164,7 +189,7 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False) -> dic
         cash=cash_sec, efloat=ef_sec,
         capital=dict(insufficient=bool(raw["float_insufficient"]), needed=_r(cap_needed), total_float=_r(cash + ef),
                      required_cash=_r(raw["recommended_cash_level"]), required_efloat=_r(raw["recommended_efloat_level"])),
-        days=days, bands=bands, actions=actions,
+        days=days, bands=bands, actions=actions, dependence=dependence,
         expected_unserved=dict(cash=_r(unserved["cash"]), efloat=_r(unserved["efloat"]), total=_r(unserved["cash"] + unserved["efloat"]),
                                note="Model estimate inside the coverage window (Monte Carlo); not ground truth."),
         events=[dict(id=e["id"], kind=e["kind"], multiplier=e["multiplier"], flow=e["flow"], start_date=e["start_date"], end_date=e["end_date"],

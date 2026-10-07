@@ -50,7 +50,7 @@ def get_forecast(agent_id: str, date: Date | None = None, explain: bool = True, 
                  db: Session = Depends(get_db)):
     aid = authorize_agent(user, agent_id)
     ctx = Ctx(db)
-    return forecasts.get_forecast(ctx, aid, date or ctx.sim_date, explain=explain)
+    return forecasts.get_forecast(ctx, aid, date or ctx.sim_date, explain=explain, compare=True)
 
 
 @router.get("/agents/{agent_id}/history")
