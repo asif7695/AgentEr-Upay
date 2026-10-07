@@ -1,5 +1,6 @@
 "use client";
 import { Save, Trash2, TriangleAlert, Undo2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { EmptyState, ErrorState, NeuBadge, NeuButton, NeuCard, NeuInput, NeuSelect, NeuTable, Skeleton, Td, Th, Tr, useToast } from "@/components/neu";
 import { api, ApiError } from "@/lib/api";
@@ -100,6 +101,7 @@ export default function RulesPage() {
             <span className="text-xs text-muted">{t("rules.hash")}: <code className="font-mono font-bold text-ink">{data.config_hash}</code></span>
           </div>
           <p className="text-xs text-muted">{data.note}</p>
+          <p className="neu-inset p-3 text-xs text-muted">{t("rules.tier.note")} <Link href="/admin/economics" className="font-semibold text-accent underline">{t("rules.tier.link")}</Link></p>
         </form>
       </NeuCard>
 

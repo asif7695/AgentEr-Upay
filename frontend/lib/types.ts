@@ -119,6 +119,7 @@ export interface RulesView {
   rules: {
     buffer_frac: number; coverage_prob: number; min_order_frac: number; high_threshold: number; watch_threshold: number;
     recon_tolerance: number; manual_report_agents: string[]; dependence_mode: DepMode; model_choice: "challenger" | "reference";
+    coverage_by_tier: Record<string, number>; buffer_by_tier: Record<string, number>; topup_mult_by_tier: Record<string, number>;
   };
   config_hash: string; bounds: Record<string, [number, number]>; defaults: Record<string, unknown>;
   model_risk_config: Record<string, number>; note: string;
@@ -176,4 +177,24 @@ export interface ModelEvidence {
   dependence: { n_origins?: number; t_nu?: number; ar1?: { rho_day: number; rho_cross: number }; method?: string; dataset?: string };
   paths?: { protocol: string; estimate: { n_origins: number; rho_day: number; rho_cross: number; t_nu: number }; results: Record<string, { "3d": PathRates; "7d": PathRates }> };
   active: { model_choice: "challenger" | "reference"; dependence_mode: DepMode };
+}
+
+export interface TierCost { orders: number; unserved: number; demand: number; stockout_days: number; service_rate: number; trips_cost: number; lost_cost: number; lost_agent: number; lost_upay: number; capital_cost: number; total: number }
+export interface PolicyNet extends TierCost { net_benefit: number }
+export interface EconTier {
+  agents: number; habit: TierCost; hybrid95: TierCost; model_only95: TierCost;
+  optimum: TierCost & { coverage: number; buffer: number; up: number };
+  net_benefit_95: number; net_benefit_optimum: number; roi_95: number | null; breakeven_trip_cost: number | null; breakeven_multiplier: number | null;
+  curve: { coverage: number; cost_default: number; cost_best: number; orders: number; unserved: number; service_rate: number }[];
+}
+export interface EconomicsView {
+  available: boolean; stamp: string; note: string; verdict: "model_guided_pays" | "habit_is_cheaper";
+  assumptions: { trip_cost: Record<string, number>; margin_rate: number; agent_share: number; customer_multiplier: number; capital_cost_annual: number };
+  defaults: { trip_cost: Record<string, number>; margin_rate: number; agent_share: number; customer_multiplier: number; capital_cost_annual: number };
+  bounds: { trip_cost: [number, number]; margin_rate: [number, number]; agent_share: [number, number]; customer_multiplier: [number, number]; capital_cost_annual: [number, number] };
+  tiers: Record<string, EconTier>;
+  policies: Record<"habit" | "hybrid95" | "optimum" | "model_only95", PolicyNet>;
+  sensitivity: { trip_scale: number; multiplier: number; coverage: number; buffer: number; up: number; net_benefit: number; beats_habit: boolean }[];
+  optimum_params: Record<string, { coverage: number; buffer: number; up: number }>;
+  applied: Record<string, { coverage: number; buffer: number; up: number }>;
 }

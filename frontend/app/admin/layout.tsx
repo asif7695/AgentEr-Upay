@@ -1,5 +1,5 @@
 "use client";
-import { Bell, ChevronsLeft, ChevronsRight, FlaskConical, LayoutDashboard, SlidersHorizontal, Truck } from "lucide-react";
+import { Bell, ChevronsLeft, ChevronsRight, Coins, FlaskConical, LayoutDashboard, SlidersHorizontal, Truck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/dispatch", key: "nav.dispatch", icon: Truck },
   { href: "/admin/rules", key: "nav.rules", icon: SlidersHorizontal },
   { href: "/admin/model", key: "nav.model", icon: FlaskConical },
+  { href: "/admin/economics", key: "nav.economics", icon: Coins },
   { href: "/admin/alerts", key: "nav.alerts", icon: Bell },
 ] as const;
 
