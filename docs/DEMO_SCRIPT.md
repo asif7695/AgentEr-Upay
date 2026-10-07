@@ -30,8 +30,9 @@ Say once, at the start: *"Everything is synthetic data. The app gives recommenda
 13. **Forecast** tab: charts and risk update immediately. Flip the language to **বাংলা** (digits switch to Bengali automatically) and the theme to dark to show the design system.
 
 ### 4:15 · Impact (say it, with the report open)
-14. Offline replay, 1 Sep-24 Dec, 16 agents (synthetic): hybrid vs habit, stock-out days **64 → 29 (-55%)**, unserved **BDT 653,720 → 232,643 (-64%)**, **but orders 309 → 503 (+63%)**: *"it is not free"*. Say the uncomfortable part ourselves: **model-only (just-in-time) is worse than habit on stock-outs (76 vs 64)**; the model's value is knowing when the habit buffer is not enough.
-15. Coverage is a business dial (80% → 40 days / 396 orders ... 99% → 18 / 587), and garment agents still need **capital**, not forecasts. Close on the limitations: synthetic data, one year, in-sample replay, independent-days assumption, recommendations only, needs governed upay data. (Figures are in `files/AgentEr_Upay_Project_Report.pdf` and `GET /impact`.)
+14. Open **ROI & coverage**. Say the uncomfortable part ourselves: *"a fixed 95% target loses money under our placeholder prices (about BDT 26.5k); the cost-optimal settings per tier save about 17.7% with fewer trips (249 vs 288) by ordering larger amounts less often."* Change a trip cost or the customer value, press **Save and recalculate**, and watch the optimum and the verdict move; open the sensitivity table. Then **Apply cost-optimal settings**. All prices are placeholders until upay supplies real ones.
+15. Earlier notebook replay, 1 Sep-24 Dec, 16 agents (synthetic): hybrid vs habit, stock-out days **64 → 29 (-55%)**, unserved **BDT 653,720 → 232,643 (-64%)**, **but orders 309 → 503 (+63%)**: *"it is not free"*. Say the uncomfortable part ourselves: **model-only (just-in-time) is worse than habit on stock-outs (76 vs 64)**; the model's value is knowing when the habit buffer is not enough.
+16. Coverage is a business dial (80% → 40 days / 396 orders ... 99% → 18 / 587), and garment agents still need **capital**, not forecasts. Close on the limitations: synthetic data, one year, in-sample replay, independent-days assumption, recommendations only, needs governed upay data. (Figures are in `files/AgentEr_Upay_Project_Report.pdf` and `GET /impact`.)
 
 ---
 

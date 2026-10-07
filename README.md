@@ -9,7 +9,7 @@ Built for the **AI DEV FEST 2026 AI Hackathon** (DIU CPC × upay), Daffodil Inte
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![LightGBM](https://img.shields.io/badge/LightGBM-4.7-2E8B57)
-![Tests](https://img.shields.io/badge/backend%20tests-61%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/backend%20tests-72%20passing-brightgreen)
 ![Data](https://img.shields.io/badge/data-synthetic-orange)
 
 > **Prototype on synthetic data.** All data is synthetic (16 agents × 365 days of 2025). The app gives **recommendations only**: a human agent or admin decides, nothing is autonomous. No LLM produces any number, decision or explanation.
@@ -75,6 +75,7 @@ The app replays the 2025 dataset on a **simulation clock**, so the whole daily c
 - Agent detail: the agent's forecast view plus reconciliation history, alerts and the **Demo reveal** overlay (true demand vs forecast).
 - Dispatch plan: next working day's orders grouped by division and ordered by risk; planned vs emergency; order workflow (proposed → acknowledged → scheduled → done).
 - Rules and events: edit buffers, coverage, thresholds, the forecast model (challenger or reference) and the path-dependence mode; add local event multipliers. Changes are validated, audit-logged and re-run forecasts without retraining.
+- ROI & coverage: unit economics of trips vs unserved transactions per agent tier, cost-optimal coverage / safety buffer / order size, break-even analysis and sensitivity, with an explicit Apply action.
 - Model & evidence: model comparison, interval calibration, unseen-agent and unseen-event tests, and path-dependence tail risk.
 - Alerts: raised on status changes, missing reports and large gaps.
 - Simulation controls: advance one day, jump to a date, auto-play, reset.
@@ -267,7 +268,7 @@ make test                      # macOS / Linux  (cd backend && python -m pytest 
 cd frontend && npm run lint && npm run build     # lint + TypeScript type-check + production build
 ```
 
-The backend suite has **61 tests** (about 65 s) and uses an isolated temporary database:
+The backend suite has **72 tests** (about 70 s) and uses an isolated temporary database:
 - **Auth and role isolation**: all 16 agents log in with their Agent ID and can read only their own data; agent to admin endpoints returns 403; no token returns 401.
 - **No leakage**: no ground-truth or generator column appears in any response outside the admin reveal.
 - **Train/serve consistency**: the serving path produces the same features and quantiles as the supplied code, and `run_forecast` equals the supplied `forecast_agent`; the serving module is byte-identical to the supplied file.
@@ -303,6 +304,7 @@ JSON, JWT bearer, one error envelope `{"error":{"code","message","details"}}`. A
 | `GET/POST /admin/orders`, `PATCH /admin/orders/{id}` | planned vs emergency; proposed → acknowledged → scheduled → done / cancelled |
 | `GET/PUT /admin/config`, `GET/POST /admin/events`, `DELETE /admin/events/{id}`, `GET /admin/audit` | rules, overrides, audit log |
 | `GET /alerts`, `POST /alerts/{id}/ack` | scoped to the caller |
+| `GET/PUT /admin/economics`, `POST /admin/economics/apply-optimum` | assumptions, policy comparison, per-tier optimum, sensitivity; applying the optimum writes per-tier rules (admin, audit-logged) |
 | `GET /admin/model-evidence` | model comparison, calibration, unseen tests, path dependence (admin; offline, synthetic) |
 | `GET /impact`, `GET /health` | static offline-evaluation JSON (labelled synthetic), health |
 
@@ -332,9 +334,20 @@ From the supplied evaluation notebook; a **simulation on synthetic data**, not a
 
 - Hybrid vs habit: about **55% fewer stock-out days** and **64% less unserved demand**, for about **63% more orders**. That is not free; whether it pays off depends on the cost of a trip versus an unserved customer.
 - Model-only is **worse** than habit on stock-outs (76 vs 64): the model's value is knowing when the habit buffer is not enough.
-- Coverage is a business dial: 80 / 90 / 95 / 99% gives 40 / 36 / 29 / 18 stock-out days for 396 / 450 / 503 / 587 orders.
+- Coverage is a business dial: 80 / 90 / 95 / 99% gives 40 / 36 / 29 / 18 stock-out days for 396 / 450 / 503 / 587 orders (notebook). Whether the extra trips pay is answered by the ROI model below, per tier.
 - Stock-out reduction by agent type: rural 78%, university 71%, market 50%, garment 20%, remittance urban 0%. Garment agents need capital: their 95% requirement exceeds total float on 10.7% of days (average shortfall about BDT 13,062).
 - Accuracy (WAPE, test Sep to Dec): model 17.1% cash-out and 17.5% cash-in vs 31.5% and 30.3% for same-weekday-last-week; synthetic noise floor 16.1%. The 80% interval actually covers 77.0% and 75.3%. Unseen agent 17.2% vs 16.9% seen; with Eid-ul-Adha held out, 29.2% cash-out and 22.9% cash-in.
+
+### ROI and the cost-optimal coverage (replenishment economics)
+
+Choosing a 95% coverage target was a guess. The app now prices both sides, per agent tier (`backend/app/rules/economics.py`, admin page **ROI & coverage**):
+
+- **Cost** = trip cost x orders + lost margin on unserved transactions x customer-value multiplier + cost of any extra capital the model's level would need.
+- **Replay engine** (`backend/ml_train/replay.py`, `economics_prep.py`): replays every policy (agent habit, hybrid and model-only at 11 coverage levels, 4 safety buffers and 5 order-up-to sizes) day by day on the ledger. It uses **no ground truth**: demand on stock-out days is imputed from the model, and the habit baseline is calibrated to the stock-outs recorded in the ledger (66 replayed vs 64 recorded). It reproduces the earlier reference closely.
+- **Result under the placeholder assumptions** (trip BDT 150 urban / 300 rural, 1% margin, customer value 1x): agent habit costs 288 trips and 66 stock-out days. A **fixed 95% hybrid loses money** (about BDT 26.5k more than habit) because its 435 trips cost more than the sales it saves. The **cost-optimal per-tier settings** (lower coverage, order up to 2x to 3x the required level, so fewer, larger trips) cut total cost by about 17.7% with 249 trips and 36 stock-out days.
+- **Break-even and sensitivity** are shown per tier (the trip cost or customer value at which the 95% policy would pay) and for a grid of trip costs and customer values.
+- **Per-tier rules:** `coverage_by_tier`, `buffer_by_tier`, `topup_mult_by_tier` override the global values; the shipped defaults are the cost-optimal values under the placeholders. **Apply cost-optimal settings** re-writes them after you change an assumption.
+- Trip costs, margins and customer value are **assumptions**; replace them with upay's real figures on the page. Rebuild the replay with `python -m ml_train.run economics` (from `backend/`).
 
 ## 16. Other configuration
 
@@ -385,7 +398,7 @@ AgentEr-Upay/
 │  ├─ ml_train/                own training pipeline: families, conformal, paths, run.py (stages: main, unseen, paths, assemble)
 │  ├─ models/                  challenger_bundle.pkl (our retrained, calibrated model)
 │  ├─ scripts/seed.py
-│  └─ tests/                   61 tests
+│  └─ tests/                   72 tests
 ├─ frontend/
 │  ├─ app/                     login, agent/*, admin/*
 │  ├─ components/              shell, design system, charts, forecast views
