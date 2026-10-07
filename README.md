@@ -9,7 +9,7 @@ Built for the **AI DEV FEST 2026 AI Hackathon** (DIU CPC × upay), Daffodil Inte
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![LightGBM](https://img.shields.io/badge/LightGBM-4.7-2E8B57)
-![Tests](https://img.shields.io/badge/backend%20tests-72%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/backend%20tests-119%20passing-brightgreen)
 ![Data](https://img.shields.io/badge/data-synthetic-orange)
 
 > **Prototype on synthetic data.** All data is synthetic (16 agents × 365 days of 2025). The app gives **recommendations only**: a human agent or admin decides, nothing is autonomous. No LLM produces any number, decision or explanation.
@@ -77,7 +77,11 @@ The app replays the 2025 dataset on a **simulation clock**, so the whole daily c
 - Rules and events: edit buffers, coverage, thresholds, the forecast model (challenger or reference) and the path-dependence mode; add local event multipliers. Changes are validated, audit-logged and re-run forecasts without retraining.
 - ROI & coverage: unit economics of trips vs unserved transactions per agent tier, cost-optimal coverage / safety buffer / order size, break-even analysis and sensitivity, with an explicit Apply action.
 - Model & evidence: model comparison, interval calibration, unseen-agent and unseen-event tests, and path-dependence tail risk.
-- Alerts: raised on status changes, missing reports and large gaps.
+- **Adaptive rules**: each agent's behaviour profile (model calibration, volatility, alert track record, report reliability) becomes small, bounded, explainable changes to that agent's coverage, safety buffer and alert thresholds. Suggest mode (an admin approves each change), automatic mode inside guard rails, or off; every change is audit-logged and reversible.
+- **Unusual demand**: each night the model's forecast for the day that just ended is compared with the ledger. A two-day jump or a sustained drift (CUSUM) becomes a proposed demand adjustment for the next week, for one agent or, when most agents of a division move together, for the whole area.
+- **Optimised plan** (Dispatch): network-wide allocation under the distributor's cash, e-float and trip limits. One exact optimisation decides how much each agent gets and who should not get a trip, compared with a simple plan within the same limits; you can fix any amount, then approve to create orders.
+- **Routes** (Dispatch): vehicle routes per division from the approved order sizes: short, urgent agents first, within each vehicle's cash limit and the working day, with a map. Locations are synthetic.
+- Alerts: raised on status changes, unusual demand, missing reports and large gaps.
 - Simulation controls: advance one day, jump to a date, auto-play, reset.
 
 **All 16 agents** (`A01` to `A16`) have their own home, report, forecast and history pages and sign in with their Agent ID.
@@ -268,13 +272,17 @@ make test                      # macOS / Linux  (cd backend && python -m pytest 
 cd frontend && npm run lint && npm run build     # lint + TypeScript type-check + production build
 ```
 
-The backend suite has **72 tests** (about 70 s) and uses an isolated temporary database:
+The backend suite has **119 tests** (about 4 min) and uses an isolated temporary database:
 - **Auth and role isolation**: all 16 agents log in with their Agent ID and can read only their own data; agent to admin endpoints returns 403; no token returns 401.
 - **No leakage**: no ground-truth or generator column appears in any response outside the admin reveal.
 - **Train/serve consistency**: the serving path produces the same features and quantiles as the supplied code, and `run_forecast` equals the supplied `forecast_agent`; the serving module is byte-identical to the supplied file.
 - **Rules**: reconciliation edge cases (missing report, over 10%, exactly 10%, zero ledger), top-up timing, status bands, event multipliers, config validation.
 - **Workflow**: clock advance, jump and end of data, alerts, orders lifecycle, audit log.
 - **Latency budgets**: forecast under 1 s, overview under 2 s.
+- **Adaptive rules**: evidence gates and hard bounds on every adaptation, shrinkage, per-agent precedence over tier and global values, suggest / auto / off, approve and revert, and no use of rows after the simulation date.
+- **Unusual-demand detection**: the CUSUM and jump maths, censored (stock-out) days, an injected shock found and proposed, accept / dismiss / revoke, auto-mode limits, no leakage.
+- **Allocation**: budgets, trip limits, e-float funding cash orders, locks, high-risk protection and infeasible cases; API admin-only, what-if not saved, approve creates orders once.
+- **Routing**: haversine distance, capacity, day length, priority, deterministic synthetic geography and the API.
 
 To verify by hand, follow [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
@@ -305,6 +313,10 @@ JSON, JWT bearer, one error envelope `{"error":{"code","message","details"}}`. A
 | `GET/PUT /admin/config`, `GET/POST /admin/events`, `DELETE /admin/events/{id}`, `GET /admin/audit` | rules, overrides, audit log |
 | `GET /alerts`, `POST /alerts/{id}/ack` | scoped to the caller |
 | `GET/PUT /admin/economics`, `POST /admin/economics/apply-optimum` | assumptions, policy comparison, per-tier optimum, sensitivity; applying the optimum writes per-tier rules (admin, audit-logged) |
+| `GET /admin/adaptive`, `POST /admin/adaptive/changes/{id}/{approve\|dismiss\|revert}` | agent behaviour profiles, proposed / applied per-agent adaptations with evidence (admin, audit-logged) |
+| `GET /admin/detected-events`, `POST /admin/detected-events/{id}/{accept\|dismiss\|revoke}`, `GET /admin/detection-evidence` | unusual-demand proposals and the detector's shock-injection evaluation |
+| `GET /admin/allocation`, `POST /admin/allocation/solve`, `PUT /admin/allocation/settings`, `POST /admin/allocation/approve` | network-wide optimised plan, what-if and fixed amounts, budgets, approve to orders |
+| `GET /admin/routes`, `PUT /admin/routes/settings`, `GET /admin/routing-evidence` | distributor routes for today's plan, vehicle settings, 200-agent evaluation |
 | `GET /admin/model-evidence` | model comparison, calibration, unseen tests, path dependence (admin; offline, synthetic) |
 | `GET /impact`, `GET /health` | static offline-evaluation JSON (labelled synthetic), health |
 
@@ -320,6 +332,10 @@ All live in `backend/app/rules/business_rules.py` and are documented in code.
 - **Top-up meaning.** A cash top-up converts e-float to cash; an e-float top-up buys e-float with cash. If total float is too small: extra capital = required cash + required e-float − current cash − current e-float.
 - **Local event override** (`POST /admin/events`): a demand multiplier with a date range, applied to the forecast quantiles before the risk simulation.
 - **Demo reveal** (admin only): overlays true demand and the true outcome for the next 7 days.
+- **Adaptive rules** (`rules/adaptive_rules.py`): coverage moves only on a statistically significant miss (|z| ≥ 1.5 of the P90-breach rate against 10%), at most +15 / −5 points; the buffer follows relative volatility within 5-30%; HIGH/WATCH thresholds move at most 10 points, with alert precision shrunk towards the network average; at least 20 usable days and 6 past alerts; one applied change per agent per 7 days.
+- **Unusual demand** (`ml/anomaly.py`): a jump is two consecutive days beyond z = 1.64 and 25% off the median forecast; a shift is a CUSUM (k = 0.75, h = 5) with at least three days. Stock-out days only confirm upward moves. The proposed multiplier is 70% of the gap, because the model's lag features partly adapt by themselves.
+- **Allocation** (`rules/allocation_rules.py`): value of an order = avoided lost margin over 7 days − capital cost − trip cost, from the same Monte Carlo paths as the risk; limits are net cash and net e-float the distributor can send and trips per division; agents at HIGH risk are always served when physically possible (switchable). Placeholder economics from the ROI page.
+- **Routes** (`rules/routing.py`): cost = distance + 2 km per priority-weighted hour, nearest neighbour then 2-opt and or-opt, sweep split by cash limit, lowest-priority stops dropped and reported if the day is too short.
 - **Simulation clock.** Valid dates run from 2025-01-28 (28 days of history needed) to 2025-12-31; the reveal overlay needs 7 full days, so its last origin is 2025-12-24.
 
 ## 15. Offline evaluation results
@@ -337,6 +353,15 @@ From the supplied evaluation notebook; a **simulation on synthetic data**, not a
 - Coverage is a business dial: 80 / 90 / 95 / 99% gives 40 / 36 / 29 / 18 stock-out days for 396 / 450 / 503 / 587 orders (notebook). Whether the extra trips pay is answered by the ROI model below, per tier.
 - Stock-out reduction by agent type: rural 78%, university 71%, market 50%, garment 20%, remittance urban 0%. Garment agents need capital: their 95% requirement exceeds total float on 10.7% of days (average shortfall about BDT 13,062).
 - Accuracy (WAPE, test Sep to Dec): model 17.1% cash-out and 17.5% cash-in vs 31.5% and 30.3% for same-weekday-last-week; synthetic noise floor 16.1%. The 80% interval actually covers 77.0% and 75.3%. Unseen agent 17.2% vs 16.9% seen; with Eid-ul-Adha held out, 29.2% cash-out and 22.9% cash-in.
+
+### Adaptive decision intelligence (Phase 2, innovation feedback)
+
+All figures are on **synthetic data** and reproducible: `python -m scripts.event_detection_eval` and `python -m scripts.routing_eval` (from `backend/`).
+
+- **Unusual-demand detector.** Shock-free run, 1 Sep to 20 Dec: 20 detections over 1,776 agent-nights (1.1%), 11 distinct proposals, about 0.7 per week for the whole network. Injected 7-day shocks on cash-out (16 agents each): ×2.0 noticed 16/16 (median delay 1 day), ×1.5 14/16 (2 days), ×0.6 15/16 (1 day), **×1.3 only 7/16** (3 days). Small shifts are mostly missed, by design: a single extreme day is ordinary here (the model's z-scores exceed 2.33 on 2.5% of days instead of 1%), so the rule asks for two days or a sustained drift.
+- **Network allocation.** On the two demo dates, against a simple plan within the same limits, the optimised plan costs 17% to 33% less and leaves 28% to 40% less expected unserved demand with fewer trips (7 vs 11 and 4 vs 5 orders). The money is small because the ROI placeholders value a lost transaction at 1% margin; change them on the ROI page and the plan follows. The per-agent rule plan alone would need net cash well above the limit (BDT 208k to 316k against 100k).
+- **Routes.** On a scaled synthetic network of 200 agents (the real data has two per division), the optimiser shortens total distance by 54% (1 vehicle per division), 42% (2) and 29% (4) against visiting agents in id order, and cuts priority-weighted waiting by 58%, 50% and 43%.
+- **Adaptive thresholds** have no counterfactual replay yet: they are explainable and bounded, but their benefit is not proven on this data.
 
 ### ROI and the cost-optimal coverage (replenishment economics)
 
@@ -380,6 +405,8 @@ No questions were asked during the build, so these are recorded here.
 - One year of data only. The default (challenger) model is out-of-sample from 1 Sep 2025; the reference model and earlier replay dates are in-sample.
 - The supplied risk engine assumes independent days by default; we add path dependence on top (default Student-t copula), but error by horizon is still unrealistically flat on synthetic data.
 - Recommendations only; humans decide.
+- **Locations are synthetic** (the data has none) and routing uses straight-line distance and an average speed. The distributor's cash and e-float limits, trips per division and vehicle settings are placeholders.
+- Adaptive thresholds are evidence-gated and bounded, but unproven on real data; the unusual-demand detector misses small (+30%) shifts.
 - Needs governed upay data for validation before any pilot.
 
 ## 19. Repository layout
@@ -391,14 +418,14 @@ AgentEr-Upay/
 │  ├─ app/
 │  │  ├─ main.py  settings.py  db.py  models.py  auth.py  errors.py  seeding.py
 │  │  ├─ ml/                   model_store.py, serving.py, liquidity_forecaster.py (verbatim copy)
-│  │  ├─ rules/                business_rules.py
-│  │  ├─ services/             sim, forecasts, alerts, dispatch, overview, reveal, context
-│  │  ├─ routers/              core, agents, admin
+│  │  ├─ rules/                business_rules, economics, adaptive_rules, allocation_rules, routing
+│  │  ├─ services/             sim, forecasts, alerts, dispatch, overview, reveal, context, adaptive, anomalies, allocation, routes, geo
+│  │  ├─ routers/              core, agents, admin, economics, allocation
 │  │  └─ data/impact.json      static offline-evaluation numbers
 │  ├─ ml_train/                own training pipeline: families, conformal, paths, run.py (stages: main, unseen, paths, assemble)
 │  ├─ models/                  challenger_bundle.pkl (our retrained, calibrated model)
 │  ├─ scripts/seed.py
-│  └─ tests/                   72 tests
+│  └─ tests/                   119 tests
 ├─ frontend/
 │  ├─ app/                     login, agent/*, admin/*
 │  ├─ components/              shell, design system, charts, forecast views
