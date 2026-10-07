@@ -21,7 +21,7 @@ const en = {
   "login.title": "Welcome back", "login.sub": "Sign in to see your forecast", "login.user": "Agent ID", "login.pass": "Password",
   "login.submit": "Sign in", "login.demo": "Demo accounts", "login.demo.admin": "Admin: admin / admin123",
   "login.demo.agent": "Agent: ID “Agent A01”, password agenta01 (same pattern for all 16)", "login.err": "Wrong Agent ID or password", "login.user.ph": "e.g. Agent A01", "login.agents": "Sign in as an agent",
-  "login.as_admin": "Admin (distribution office)", "login.as_agent": "Agent A01 (demo)",
+  "login.as_admin": "Admin (distribution office)", "login.as_agent": "Agent A01", "login.admin_short": "Admin",
 
   "sim.clock": "Simulation clock", "sim.advance": "Advance 1 day", "sim.jump": "Jump to date", "sim.go": "Go", "sim.play": "Auto-play",
   "sim.pause": "Pause", "sim.end": "End of data", "sim.running": "Running nightly pipeline…",
@@ -30,6 +30,7 @@ const en = {
   "sim.bad_date": "Pick a date inside the valid range",
 
   "home.hello": "Hello, {name}", "home.today": "Today · simulation clock", "home.balance_now": "Balance now",
+  "home.see_forecast": "See 7-day forecast", "home.submit_count": "Submit today's cash count",
   "home.next": "Do this next", "home.division": "{division} · {type}",
   "gauge.cash": "Cash run-out risk", "gauge.efloat": "E-float run-out risk",
   "gauge.sub": "before the next possible top-up ({n}-day window)", "gauge.of_cap": "{pct}% of capacity",

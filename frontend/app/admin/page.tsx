@@ -38,10 +38,10 @@ export default function AdminOverview() {
       </div>
 
       <section aria-label="KPIs" className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
-        <NeuStat label={t("kpi.high")} value={k.high} format={fmt.num} tone={k.high ? "high" : "ink"} icon={<TriangleAlert size={18} />} note={`≥ ${fmt.num(data.thresholds.high)}%`} />
+        <NeuStat label={t("kpi.high")} value={k.high} format={fmt.num} fill="blue" icon={<TriangleAlert size={18} />} note={`≥ ${fmt.num(data.thresholds.high)}%`} />
         <NeuStat label={t("kpi.watch")} value={k.watch} format={fmt.num} tone={k.watch ? "watch" : "ink"} icon={<Eye size={18} />} note={`${fmt.num(data.thresholds.watch)}–${fmt.num(data.thresholds.high)}%`} />
         <NeuStat label={t("kpi.unserved")} value={k.expected_unserved} format={fmt.bdt} icon={<TrendingDown size={18} />} note={t("kpi.unserved.note")} />
-        <NeuStat label={t("kpi.topup")} value={k.planned_topup_total} format={fmt.bdt} icon={<Banknote size={18} />} note={t("kpi.topup.note", { c: fmt.bdt(k.planned_topup_cash), e: fmt.bdt(k.planned_topup_efloat) })} tone="accent" />
+        <NeuStat label={t("kpi.topup")} value={k.planned_topup_total} format={fmt.bdt} icon={<Banknote size={18} />} note={t("kpi.topup.note", { c: fmt.bdt(k.planned_topup_cash), e: fmt.bdt(k.planned_topup_efloat) })} fill="yellow" />
         <NeuStat label={t("kpi.capital")} value={k.agents_needing_capital} format={fmt.num} tone={k.agents_needing_capital ? "watch" : "ink"} icon={<Landmark size={18} />} note={t("kpi.capital.note")} />
         <NeuStat label={t("kpi.reports")} value={k.reports_missing + k.reports_flagged} format={fmt.num} icon={<ClipboardList size={18} />} note={t("kpi.reports.note", { m: k.reports_missing, f: k.reports_flagged })} />
       </section>

@@ -23,7 +23,7 @@ const bn: Record<DictKey, string> = {
   "login.title": "স্বাগতম", "login.sub": "আপনার পূর্বাভাস দেখতে সাইন ইন করুন", "login.user": "এজেন্ট আইডি", "login.pass": "পাসওয়ার্ড",
   "login.submit": "সাইন ইন", "login.demo": "ডেমো অ্যাকাউন্ট", "login.demo.admin": "অ্যাডমিন: admin / admin123",
   "login.demo.agent": "এজেন্ট: আইডি “Agent A01”, পাসওয়ার্ড agenta01 (১৬ জনের জন্যই একই নিয়ম)", "login.err": "এজেন্ট আইডি বা পাসওয়ার্ড ভুল", "login.user.ph": "যেমন Agent A01", "login.agents": "এজেন্ট হিসেবে সাইন ইন করুন",
-  "login.as_admin": "অ্যাডমিন (বিতরণ অফিস)", "login.as_agent": "এজেন্ট A01 (ডেমো)",
+  "login.as_admin": "অ্যাডমিন (বিতরণ অফিস)", "login.as_agent": "এজেন্ট A01", "login.admin_short": "অ্যাডমিন",
 
   "sim.clock": "সিমুলেশন ঘড়ি", "sim.advance": "১ দিন এগিয়ে নিন", "sim.jump": "তারিখে যান", "sim.go": "যান", "sim.play": "অটো-প্লে",
   "sim.pause": "থামান", "sim.end": "ডেটা শেষ", "sim.running": "রাতের পাইপলাইন চলছে…",
@@ -32,6 +32,7 @@ const bn: Record<DictKey, string> = {
   "sim.bad_date": "বৈধ সীমার মধ্যে একটি তারিখ বাছুন",
 
   "home.hello": "হ্যালো, {name}", "home.today": "আজ · সিমুলেশন ঘড়ি", "home.balance_now": "এখনকার ব্যালেন্স",
+  "home.see_forecast": "৭ দিনের পূর্বাভাস দেখুন", "home.submit_count": "আজকের নগদ গণনা জমা দিন",
   "home.next": "এরপর যা করবেন", "home.division": "{division} · {type}",
   "gauge.cash": "নগদ ফুরানোর ঝুঁকি", "gauge.efloat": "ই-ফ্লোট ফুরানোর ঝুঁকি",
   "gauge.sub": "পরবর্তী সম্ভাব্য টপ-আপের আগে ({n} দিনের সময়সীমা)", "gauge.of_cap": "ধারণক্ষমতার {pct}%",

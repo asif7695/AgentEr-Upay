@@ -51,7 +51,7 @@ export default function AgentDetail() {
 
       {reveal && sim?.can_reveal && (
         <section aria-live="polite" className="flex flex-col gap-3">
-          <p role="note" className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold" style={{ background: "var(--accent-2)", color: "#1F2A44" }}>
+          <p role="note" className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold" style={{ background: "var(--accent-2)", color: "var(--brand-ink)" }}>
             <Sparkles size={18} aria-hidden />{t("reveal.banner")}
           </p>
           {rvErr && <ErrorState message={rvErr.message} />}
