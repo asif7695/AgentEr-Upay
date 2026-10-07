@@ -9,7 +9,7 @@ Built for the **AI DEV FEST 2026 AI Hackathon** (DIU CPC × upay), Daffodil Inte
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![LightGBM](https://img.shields.io/badge/LightGBM-4.7-2E8B57)
-![Tests](https://img.shields.io/badge/backend%20tests-45%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/backend%20tests-61%20passing-brightgreen)
 ![Data](https://img.shields.io/badge/data-synthetic-orange)
 
 > **Prototype on synthetic data.** All data is synthetic (16 agents × 365 days of 2025). The app gives **recommendations only**: a human agent or admin decides, nothing is autonomous. No LLM produces any number, decision or explanation.
@@ -74,7 +74,8 @@ The app replays the 2025 dataset on a **simulation clock**, so the whole daily c
 - Network overview: KPI tiles, division tiles and a risk-ranked, filterable agent table.
 - Agent detail: the agent's forecast view plus reconciliation history, alerts and the **Demo reveal** overlay (true demand vs forecast).
 - Dispatch plan: next working day's orders grouped by division and ordered by risk; planned vs emergency; order workflow (proposed → acknowledged → scheduled → done).
-- Rules and events: edit buffers, coverage and thresholds; add local event multipliers. Changes are validated, audit-logged and re-run forecasts without retraining.
+- Rules and events: edit buffers, coverage, thresholds, the forecast model (challenger or reference) and the path-dependence mode; add local event multipliers. Changes are validated, audit-logged and re-run forecasts without retraining.
+- Model & evidence: model comparison, interval calibration, unseen-agent and unseen-event tests, and path-dependence tail risk.
 - Alerts: raised on status changes, missing reports and large gaps.
 - Simulation controls: advance one day, jump to a date, auto-play, reset.
 
@@ -84,12 +85,23 @@ The app replays the 2025 dataset on a **simulation clock**, so the whole daily c
 
 | Component | What it does | Where |
 |---|---|---|
-| **LightGBM quantile models** (supplied bundle) | Predict P10, P25, P50, P75, P90 of cash-out and cash-in for each of the next 7 days from calendar, holiday, Eid, payday, agent-type and lag/rolling features | `liquidity_model_bundle.pkl` via `backend/app/ml/` |
+| **Challenger model (ours)**: LightGBM quantile models retrained by `backend/ml_train` | Predict P10, P25, P50, P75, P90 of cash-out and cash-in for each of the next 7 days. Relative target, agent-type × event features, censoring-aware labels, early stopping; fitted to 30 Jun on a strict chronological split | `backend/models/challenger_bundle.pkl` |
+| **Conformal calibration (CQR)** | Widens or tightens the P10 to P90 and P25 to P75 intervals using a calibration month the model never trained on, per flow and agent type, so the 80% interval actually covers about 80% | `backend/app/ml/conformal.py` |
+| **Reference model** (supplied LightGBM bundle) | The organisers' model, kept untouched as a selectable reference. Trained on all of 2025, so its Sep to Dec numbers are in-sample | `liquidity_model_bundle.pkl` |
 | **Monte Carlo risk engine** (supplied) | Samples demand paths, applies them to current balances, returns run-out risk per day, likely run-out date, expected shortfall and the inventory level that covers the chosen coverage (95% default) | `lf.risk_summary` |
-| **Exact tree-SHAP explanations** (supplied) | Top-5 drivers per day in BDT, mapped to Bangla/English labels with sign-aware wording | `lf.explain_prediction` |
+| **Multi-day path dependence** | A Student-t copula (default), Gaussian copula or AR(1) path model feeds the supplied engine correlated draws, so a high-demand day raises the next days' demand and extreme days cluster | `backend/app/ml/dependence.py` |
+| **Exact tree-SHAP explanations** (supplied function) | Top-5 drivers per day in BDT, mapped to Bangla/English labels with sign-aware wording | `lf.explain_prediction` |
+
+Model development and evidence (`backend/ml_train/`, offline, reproducible, admin page **Model & evidence**):
+- **Compared on identical splits:** our LightGBM, a log-normal boosted model, linear quantile regression, a no-ML seasonal profile, the same-weekday baseline, and the supplied bundle.
+- **Honest out-of-sample tests:** chronological split (fit to 30 Jun, early stopping in Jul, calibration in Aug, **test 1 Sep to 31 Dec**), 4-fold **unseen agents**, and a held-out **Eid-ul-Adha**.
+- **Interval coverage:** 80% interval coverage goes from 72.1% / 75.3% (cash-out / cash-in) to 82.3% / 81.2% after calibration.
+- **Path dependence:** tested on observed 3- and 7-day cumulative demand; the Student-t copula has the lowest 7-day tail error (1.8% vs 3.0% for independent days).
+- Re-run on real data in the same format: `python -m ml_train.run main unseen paths assemble` (from `backend/`).
 
 Guardrails:
-- The model is used exactly as supplied: **never retrained, never mutated**. `backend/app/ml/liquidity_forecaster.py` is a byte-identical copy of `files/liquidity_forecaster.py` and a test asserts this.
+- The supplied serving module is used unchanged: `backend/app/ml/liquidity_forecaster.py` is a byte-identical copy of `files/liquidity_forecaster.py` and a test asserts this. Feature building, the Monte Carlo risk engine and the explanations are imported, never reimplemented. The supplied model file is never modified; our own models are separate files.
+- **No ground truth in training or evaluation:** ground-truth columns are dropped before any feature is built, and a test enforces it.
 - **Model vs rules are separate.** Buffers, coverage, thresholds, top-up sizing and timing, reconciliation and event overrides live in `backend/app/rules/business_rules.py` and the config table. Rule changes re-run forecasts on a copy of the risk config.
 - **No ground truth in the product.** True-demand columns live in an isolated table read only by the admin Demo reveal service; generator internals (`base_cashout`, `base_cashin`, `noise_std`) are never loaded or shown. A test proves no such field appears in any other response.
 - **No LLM** produces any number, decision or explanation; explanations are deterministic templates.
@@ -102,7 +114,7 @@ Guardrails:
 |---|---|
 | Language | Python 3.12, TypeScript |
 | Backend | FastAPI, Uvicorn, SQLAlchemy 2, SQLite, Pydantic 2, PyJWT, bcrypt |
-| ML / data | LightGBM 4.7.0, pandas 3.0.2, numpy 2.4.4, scipy (pinned to the versions recorded in the bundle) |
+| ML / data | LightGBM 4.7.0, pandas 3.0.2, numpy 2.4.4, scipy, scikit-learn (linear quantile baseline); pinned to the versions recorded in the bundle |
 | Frontend | Next.js 16 (App Router), React, Tailwind CSS v4, Recharts, Framer Motion, lucide-react |
 | i18n | Typed English and Bangla dictionaries; `Intl` for digits and dates |
 | Testing | pytest, ESLint, TypeScript type-check via `next build` |
@@ -255,7 +267,7 @@ make test                      # macOS / Linux  (cd backend && python -m pytest 
 cd frontend && npm run lint && npm run build     # lint + TypeScript type-check + production build
 ```
 
-The backend suite has **45 tests** (about 70 s) and uses an isolated temporary database:
+The backend suite has **61 tests** (about 65 s) and uses an isolated temporary database:
 - **Auth and role isolation**: all 16 agents log in with their Agent ID and can read only their own data; agent to admin endpoints returns 403; no token returns 401.
 - **No leakage**: no ground-truth or generator column appears in any response outside the admin reveal.
 - **Train/serve consistency**: the serving path produces the same features and quantiles as the supplied code, and `run_forecast` equals the supplied `forecast_agent`; the serving module is byte-identical to the supplied file.
@@ -291,6 +303,7 @@ JSON, JWT bearer, one error envelope `{"error":{"code","message","details"}}`. A
 | `GET/POST /admin/orders`, `PATCH /admin/orders/{id}` | planned vs emergency; proposed → acknowledged → scheduled → done / cancelled |
 | `GET/PUT /admin/config`, `GET/POST /admin/events`, `DELETE /admin/events/{id}`, `GET /admin/audit` | rules, overrides, audit log |
 | `GET /alerts`, `POST /alerts/{id}/ack` | scoped to the caller |
+| `GET /admin/model-evidence` | model comparison, calibration, unseen tests, path dependence (admin; offline, synthetic) |
 | `GET /impact`, `GET /health` | static offline-evaluation JSON (labelled synthetic), health |
 
 The audit log records config changes, orders, cash reports, events, simulation-clock moves and failed logins.
@@ -347,9 +360,12 @@ No questions were asked during the build, so these are recorded here.
 
 ## 18. Limitations
 
+- **No real upay data was available.** Retraining, calibration and the unseen-agent / unseen-event tests are out-of-sample on a chronological split, but still on synthetic data, so they validate the method and pipeline, not real-world accuracy. The pipeline re-runs unchanged on real data in the same format.
+- Day-to-day dependence on this synthetic data is weak (day-to-day link about 0.1); real data may show more, and the app re-estimates it.
+- Our retrained model is slightly less accurate than the supplied bundle on Sep to Dec (WAPE 0.169 vs 0.158 cash-out), because the supplied bundle was trained on those months. We keep the supplied model selectable as the reference.
 - Synthetic data: the model recovers planted patterns, so results validate the pipeline, not real-world accuracy.
-- One year of data only; the deployed model was trained on all of 2025, so replay dates are in-sample.
-- The risk engine assumes independent days, so tail risk is probably understated and error by horizon is unrealistically flat.
+- One year of data only. The default (challenger) model is out-of-sample from 1 Sep 2025; the reference model and earlier replay dates are in-sample.
+- The supplied risk engine assumes independent days by default; we add path dependence on top (default Student-t copula), but error by horizon is still unrealistically flat on synthetic data.
 - Recommendations only; humans decide.
 - Needs governed upay data for validation before any pilot.
 
@@ -366,8 +382,10 @@ AgentEr-Upay/
 │  │  ├─ services/             sim, forecasts, alerts, dispatch, overview, reveal, context
 │  │  ├─ routers/              core, agents, admin
 │  │  └─ data/impact.json      static offline-evaluation numbers
+│  ├─ ml_train/                own training pipeline: families, conformal, paths, run.py (stages: main, unseen, paths, assemble)
+│  ├─ models/                  challenger_bundle.pkl (our retrained, calibrated model)
 │  ├─ scripts/seed.py
-│  └─ tests/                   45 tests
+│  └─ tests/                   61 tests
 ├─ frontend/
 │  ├─ app/                     login, agent/*, admin/*
 │  ├─ components/              shell, design system, charts, forecast views
