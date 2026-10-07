@@ -1,63 +1,71 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------
-   AgentEr Upay: FLAT design tokens.
-   Flat = solid colours, crisp 1px borders, no shadows or gradients, modest radii, bold accent fills.
+   AgentEr Upay: FLAT design tokens in the upay brand palette.
+   Brand: upay Blue #1A4FD6 (primary, hero bands, sidebar), upay Yellow #FFC20E (highlight cards, active nav,
+   "do this next"), Navy ink #0B1A3F (text, text on yellow), Cloud #F3F6FC (light page), Night #0F1B3D (dark cards).
+   Flat = solid colours, crisp 1px borders, no shadows or gradients, modest radii, bold brand fills.
    (The `neu-*` class names are historical; they are kept so components did not need to change.)
    Surfaces: page (--bg) < card (--surface) ; wells (--well) are tinted areas for tables, charts and inputs.
-   AA notes: --muted is #54637E (>= 4.5:1 on white and on --well); status colours used as TEXT are darker/lighter
-   variants, the brighter spec colours are used for fills and strokes only (always paired with an icon + label).
+   AA notes: --muted >= 4.5:1 on --surface and --well; status colours used as TEXT are darker/lighter variants,
+   the brighter colours are used for fills and strokes only (always paired with an icon + label).
+   Text on yellow is always navy ink (#0B1A3F on #FFC20E = 11.6:1); white on blue #1A4FD6 = 6.4:1.
 ------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-  --bg: #F1F4F9;
+  --brand: #1A4FD6; --brand-yellow: #FFC20E; --brand-ink: #0B1A3F; --brand-night: #0F1B3D; --brand-cloud: #F3F6FC;
+  --bg: #F3F6FC;
   --surface: #FFFFFF;
-  --well: #E9EEF5;
-  --border: #CBD4E2;
-  --text: #0D1C42;
-  --muted: #4F5E7F;
-  --hairline: rgba(13, 28, 66, .16);
-  --accent: #0D1C42;            /* brand navy */
-  --accent-fill: #0D1C42;
+  --well: #EDF1FA;
+  --border: #D5DDEE;
+  --text: #0B1A3F;
+  --muted: #4B5A7C;
+  --hairline: rgba(11, 26, 63, .14);
+  --accent: #1A4FD6;            /* upay blue: links, focus, active text */
+  --accent-fill: #1A4FD6;
   --accent-on: #FFFFFF;
-  --accent-2: #F5B400;          /* upay warm yellow (assumed) */
-  --focus: #1D4ED8;
-  --ok: #2FA36B;   --watch: #E0A100;   --high: #D9534F;
-  --ok-text: #17704A; --watch-text: #7A5800; --high-text: #B0302C;
-  --c-a: #1D4ED8;  --c-b: #C2570C;      /* chart series: A = cash-out / cash, B = cash-in / e-float */
-  --c-a-soft: rgba(29, 78, 216, .16); --c-b-soft: rgba(194, 87, 12, .16);
-  --closed: rgba(84, 99, 126, .16);
-  --nav-active-bg: var(--well); --nav-active-fg: var(--accent);
-  --radius: 14px;
-  --radius-sm: 10px;
+  --accent-2: #FFC20E;          /* upay yellow */
+  --focus: #1A4FD6;
+  --hero: #1A4FD6; --hero-on: #FFFFFF; --hero-muted: #D6E1FF;       /* agent header band, login hero */
+  --side: #1A4FD6; --side-on: #FFFFFF; --side-muted: #D6E1FF; --side-hover: rgba(255, 255, 255, .12);
+  --ok: #1F9D63;   --watch: #F08A00;   --high: #E5484D;
+  --ok-text: #12704A; --watch-text: #8A4B00; --high-text: #B42318;
+  --c-a: #1A4FD6;  --c-b: #C2570C;      /* chart series: A = cash-out / cash, B = cash-in / e-float */
+  --c-a-soft: rgba(26, 79, 214, .16); --c-b-soft: rgba(194, 87, 12, .16);
+  --closed: rgba(75, 90, 124, .16);
+  --nav-active-bg: #FFC20E; --nav-active-fg: #0B1A3F;
+  --radius: 16px;
+  --radius-sm: 12px;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #040A18; --surface: #0A1530; --well: #060E24; --border: #1D3163;
-  --text: #EAF0FF; --muted: #9DABCF;
+  --bg: #070F26; --surface: #0F1B3D; --well: #0B1633; --border: #22346B;
+  --text: #EEF2FF; --muted: #A6B3D8;
   --hairline: rgba(170, 182, 214, .22);
-  --accent: #6F9BFF; --accent-fill: #2F6BF0; --accent-on: #FFFFFF; --focus: #6F9BFF;
-  --ok: #34C98A; --watch: #E8B100; --high: #F2793A;
-  --nav-active-bg: #2F6BF0; --nav-active-fg: #FFFFFF;
-  --ok-text: #4FD99C; --watch-text: #F2C14E; --high-text: #FF9961;
-  --c-a: #5B8BE0; --c-b: #D2772F;
-  --c-a-soft: rgba(91, 139, 224, .26); --c-b-soft: rgba(210, 119, 47, .26);
+  --accent: #7FA3FF; --accent-fill: #2F62E8; --accent-on: #FFFFFF; --focus: #7FA3FF;
+  --hero: #0F1B3D; --hero-on: #FFFFFF; --hero-muted: #B9C6EA;
+  --side: #0F1B3D; --side-on: #FFFFFF; --side-muted: #B9C6EA; --side-hover: rgba(255, 255, 255, .08);
+  --ok: #34C98A; --watch: #F5A524; --high: #FF6B6B;
+  --ok-text: #4FD99C; --watch-text: #FFC266; --high-text: #FF8A80;
+  --c-a: #6E95F5; --c-b: #D2772F;
+  --c-a-soft: rgba(110, 149, 245, .26); --c-b-soft: rgba(210, 119, 47, .26);
   --closed: rgba(170, 182, 214, .12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #040A18; --surface: #0A1530; --well: #060E24; --border: #1D3163;
-    --text: #EAF0FF; --muted: #9DABCF;
+    --bg: #070F26; --surface: #0F1B3D; --well: #0B1633; --border: #22346B;
+    --text: #EEF2FF; --muted: #A6B3D8;
     --hairline: rgba(170, 182, 214, .22);
-    --accent: #6F9BFF; --accent-fill: #2F6BF0; --accent-on: #FFFFFF; --focus: #6F9BFF;
-  --ok: #34C98A; --watch: #E8B100; --high: #F2793A;
-  --nav-active-bg: #2F6BF0; --nav-active-fg: #FFFFFF;
-    --ok-text: #4FD99C; --watch-text: #F2C14E; --high-text: #FF9961;
-    --c-a: #5B8BE0; --c-b: #D2772F;
-    --c-a-soft: rgba(91, 139, 224, .26); --c-b-soft: rgba(210, 119, 47, .26);
+    --accent: #7FA3FF; --accent-fill: #2F62E8; --accent-on: #FFFFFF; --focus: #7FA3FF;
+    --hero: #0F1B3D; --hero-on: #FFFFFF; --hero-muted: #B9C6EA;
+    --side: #0F1B3D; --side-on: #FFFFFF; --side-muted: #B9C6EA; --side-hover: rgba(255, 255, 255, .08);
+    --ok: #34C98A; --watch: #F5A524; --high: #FF6B6B;
+    --ok-text: #4FD99C; --watch-text: #FFC266; --high-text: #FF8A80;
+    --c-a: #6E95F5; --c-b: #D2772F;
+    --c-a-soft: rgba(110, 149, 245, .26); --c-b-soft: rgba(210, 119, 47, .26);
     --closed: rgba(170, 182, 214, .12);
   }
 }
@@ -69,21 +77,24 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent2: var(--accent-2);
+  --color-brand: var(--brand);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-ink: var(--brand-ink);
   --color-ok: var(--ok-text);
   --color-watch: var(--watch-text);
   --color-high: var(--high-text);
-  --font-sans: var(--font-geist-sans), var(--font-bn), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-jakarta), var(--font-bn), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 html { background: var(--bg); }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-geist-sans), var(--font-bn), system-ui, sans-serif;
+  font-family: var(--font-jakarta), var(--font-bn), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-html[lang="bn"] body { font-family: var(--font-bn), var(--font-geist-sans), system-ui, sans-serif; }
+html[lang="bn"] body { font-family: var(--font-bn), var(--font-jakarta), system-ui, sans-serif; }
 
 /* ---- flat surfaces: solid fill + 1px border, never a shadow ------------------ */
 .neu-raised    { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }       /* cards, panels */
@@ -92,26 +103,75 @@ html[lang="bn"] body { font-family: var(--font-bn), var(--font-geist-sans), syst
 .neu-inset-sm  { background: var(--well);    border: 1px solid var(--border); border-radius: 8px; }                 /* badges, tracks */
 .neu-flat      { background: transparent;    border: 1px solid var(--border); border-radius: var(--radius-sm); }    /* list items */
 
+/* ---- brand surfaces ----------------------------------------------------------- */
+.brand-hero { background: var(--hero); color: var(--hero-on); }
+.brand-hero .hero-muted { color: var(--hero-muted); }
+.brand-side { background: var(--side); color: var(--side-on); }
+.brand-side .side-muted { color: var(--side-muted); }
+.brand-side .side-link { color: var(--side-on); }
+.brand-side .side-link:hover { background: var(--side-hover); }
+:root[data-theme="dark"] .brand-hero, :root[data-theme="dark"] .brand-side { border-color: var(--border); }
+/* yellow highlight card ("do this next", planned top-ups): navy ink on yellow in both themes */
+.card-yellow { background: var(--brand-yellow); border: 1px solid var(--brand-yellow); border-radius: var(--radius); color: var(--brand-ink); }
+.card-yellow .text-muted, .card-yellow .on-yellow-muted { color: rgba(11, 26, 63, .78); }
+.card-yellow :focus-visible { outline-color: var(--brand-ink); }
+/* blue KPI tile */
+.card-blue { background: var(--brand); border: 1px solid var(--brand); border-radius: var(--radius); color: #FFFFFF; }
+.card-blue .text-muted { color: #D6E1FF; }
+.card-blue :focus-visible { outline-color: #FFFFFF; }
+/* wordmark: "AgentEr" + "Upay" in yellow */
+.wordmark-upay { color: var(--brand-yellow); }
+.wordmark-on-light .wordmark-upay { color: var(--brand); }
+:root[data-theme="dark"] .wordmark-on-light .wordmark-upay { color: var(--brand-yellow); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wordmark-on-light .wordmark-upay { color: var(--brand-yellow); } }
+
 /* buttons: solid, flat; hover = tint change, press = darker tint (no lift, no shadow) */
 .neu-btn {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  min-height: 44px; min-width: 44px; padding: 0 18px; font-weight: 600; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  min-height: 44px; min-width: 44px; padding: 0 18px; font-weight: 700; color: var(--text);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, filter .15s ease;
 }
-.neu-btn:hover:not(:disabled) { background: var(--well); border-color: var(--muted); }
+.neu-btn:hover:not(:disabled) { background: var(--well); border-color: var(--accent); }
 .neu-btn:active:not(:disabled), .neu-btn[aria-pressed="true"] { background: var(--well); border-color: var(--accent); color: var(--accent); }
 .neu-btn:disabled { opacity: .55; cursor: not-allowed; }
 .neu-btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-on); }
-.neu-btn.primary:hover:not(:disabled) { filter: brightness(1.12); background: var(--accent-fill); border-color: var(--accent-fill); }
+.neu-btn.primary:hover:not(:disabled) { filter: brightness(1.1); background: var(--accent-fill); border-color: var(--accent-fill); }
 .neu-btn.primary:active:not(:disabled) { filter: brightness(.9); color: var(--accent-on); border-color: var(--accent-fill); }
+.neu-btn.yellow { background: var(--brand-yellow); border-color: var(--brand-yellow); color: var(--brand-ink); }
+.neu-btn.yellow:hover:not(:disabled) { filter: brightness(1.05); background: var(--brand-yellow); border-color: var(--brand-ink); }
+.neu-btn.yellow:active:not(:disabled) { filter: brightness(.95); color: var(--brand-ink); }
+.neu-btn.ink { background: var(--brand-ink); border-color: var(--brand-ink); color: #FFFFFF; }
+.neu-btn.ink:hover:not(:disabled) { filter: brightness(1.35); background: var(--brand-ink); border-color: var(--brand-ink); }
+.neu-btn.ink:active:not(:disabled) { color: #FFFFFF; }
 .neu-btn.danger { color: var(--high-text); }
+/* toolbar chips sitting on a blue band / sidebar */
+.on-brand .neu-btn:not(.yellow):not(.primary) { background: #FFFFFF; border-color: #FFFFFF; color: var(--brand-ink); }
+.on-brand .neu-btn:not(.yellow):not(.primary):hover:not(:disabled) { background: var(--brand-cloud); border-color: var(--brand-yellow); }
+.on-brand :focus-visible { outline-color: var(--brand-yellow); }
+:root[data-theme="dark"] .on-brand .neu-btn:not(.yellow):not(.primary) { background: var(--well); border-color: var(--border); color: var(--text); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .on-brand .neu-btn:not(.yellow):not(.primary) { background: var(--well); border-color: var(--border); color: var(--text); }
+  :root:not([data-theme="light"]) .brand-hero, :root:not([data-theme="light"]) .brand-side { border-color: var(--border); }
+}
+
+/* status / tone pills: tinted fill + matching border; text uses the AA text variant */
+.pill { border-radius: 9999px; border: 1px solid var(--border); background: var(--well); }
+.pill-high  { background: color-mix(in srgb, var(--high) 13%, var(--surface));  border-color: color-mix(in srgb, var(--high) 38%, var(--surface)); }
+.pill-watch { background: color-mix(in srgb, var(--watch) 15%, var(--surface)); border-color: color-mix(in srgb, var(--watch) 40%, var(--surface)); }
+.pill-ok    { background: color-mix(in srgb, var(--ok) 13%, var(--surface));    border-color: color-mix(in srgb, var(--ok) 38%, var(--surface)); }
+.pill-accent{ background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 35%, var(--surface)); }
+.pill-ink   { background: var(--brand-ink); border-color: var(--brand-ink); color: #FFFFFF !important; }
+:root[data-theme="dark"] .pill-ink { background: var(--brand-yellow); border-color: var(--brand-yellow); color: var(--brand-ink) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-ink { background: var(--brand-yellow); border-color: var(--brand-yellow); color: var(--brand-ink) !important; } }
+.card-yellow .pill-ink { background: var(--brand-ink) !important; border-color: var(--brand-ink) !important; color: #FFFFFF !important; }
 
 /* inputs: white field with a visible border; accent border on focus */
 .neu-input {
-  background: var(--surface); border: 1px solid var(--muted); border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   min-height: 48px; padding: 0 16px; width: 100%; color: var(--text); font-size: 1rem;
 }
+.neu-input:hover { border-color: var(--muted); }
 .neu-input:focus { border-color: var(--accent); }
 .neu-input::placeholder { color: var(--muted); opacity: .85; }
 
@@ -119,7 +179,7 @@ html[lang="bn"] body { font-family: var(--font-bn), var(--font-geist-sans), syst
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
 .neu-input:focus-visible { outline-offset: 1px; }
 
-/* active navigation item: tinted in light, solid accent in dark */
+/* active navigation item: upay yellow with navy ink in both themes */
 a[aria-current="page"] { background: var(--nav-active-bg) !important; color: var(--nav-active-fg) !important; border-color: transparent !important; }
 
 /* table rows: flat, tint on hover */
