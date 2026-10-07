@@ -121,3 +121,13 @@ def test_student_t_copula_clusters_extremes_more_than_gaussian():
     joint = lambda a, b: np.mean((a > 0.99) & (b > 0.99))
     assert joint(a_t, b_t) > 1.5 * joint(a_g, b_g)
     assert stats.kstest(a_t, "uniform").pvalue > 0.001                    # marginals still uniform
+
+
+def test_fresh_sampler_replays_the_same_paths_with_its_own_call_counter():
+    a = CopulaRNG(9, ar1_corr(0.5, 0.2), 300, nu=6)
+    f1, f2 = a.fresh(), a.fresh()
+    c1 = [f1.random(300) for _ in range(14)]
+    c2 = [f2.random(300) for _ in range(14)]
+    assert all(np.array_equal(x, y) for x, y in zip(c1, c2))          # risk run and band run see identical paths
+    with pytest.raises(RuntimeError):
+        f1.random(300)                                                 # each view still enforces the 14-call pattern

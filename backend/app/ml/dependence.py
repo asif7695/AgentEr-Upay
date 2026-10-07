@@ -62,6 +62,13 @@ class CopulaRNG:
             self._u = student_t.cdf(z / np.sqrt(w), df=nu)
         self._n, self._calls = n_paths, 0
 
+    def fresh(self) -> "CopulaRNG":
+        """A new sampler over the SAME pre-drawn uniforms (the risk run and the balance-band run must see identical paths;
+        drawing them once halves the cost)."""
+        c = object.__new__(CopulaRNG)
+        c._u, c._n, c._calls = self._u, self._n, 0
+        return c
+
     def random(self, size=None):
         if size != self._n or self._calls >= N_COLS:
             raise RuntimeError("CopulaRNG: unexpected call pattern from the sampler")

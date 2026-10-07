@@ -74,7 +74,8 @@ def run_forecast(bundle: dict, history: pd.DataFrame, agent_row: pd.Series, orig
     cap_c, cap_e = float(r["cap_cash"]), float(r["cap_ef"])
     cfg = {**lf.DEFAULT_RISK_CONFIG, **risk_cfg}
     corr, nu = (dependence if isinstance(dependence, tuple) else (dependence, None))
-    make_rng = (lambda: np.random.default_rng(seed)) if corr is None else (lambda: CopulaRNG(seed, corr, cfg["n_paths"], nu))
+    proto = None if corr is None else CopulaRNG(seed, corr, cfg["n_paths"], nu)         # drawn once, reused by the risk and the band runs
+    make_rng = (lambda: np.random.default_rng(seed)) if proto is None else proto.fresh
     out = lf.risk_summary(q_co, q_ci, bundle["quantiles"], cash, efloat, cap_c, cap_e, int(r["closed_ahead_origin"]),
                           r["co_scale"], r["ci_scale"], risk_cfg, make_rng())
 
