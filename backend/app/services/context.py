@@ -84,6 +84,12 @@ def audit(db: Session, actor: str, action: str, entity: str, entity_id=None, det
                     entity_id=None if entity_id is None else str(entity_id), detail=json.dumps(detail or {}, default=str)))
 
 
+def event_label(kind: str) -> str:
+    if kind == "detected":
+        return "detected from the ledger and approved; not learned by the model"
+    return "manual adjustment, not learned by the model"
+
+
 def event_dict(e: Event) -> dict:
     return dict(id=e.id, scope=e.scope, target=e.target, kind=e.kind, flow=e.flow, multiplier=e.multiplier,
                 start_date=e.start_date, end_date=e.end_date, note=e.note, active=bool(e.active),

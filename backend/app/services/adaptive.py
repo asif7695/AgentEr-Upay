@@ -43,17 +43,28 @@ _risks: dict[tuple, tuple[float, float, int]] = {}
 _origins: dict[tuple, tuple] = {}
 
 
+def invalidate(agent_id: str | None = None, from_date: date | None = None) -> None:
+    """Forget cached per-origin work (used when the ledger is replaced, e.g. by the shock-injection evaluation)."""
+    with _lock:
+        _profiles.clear()
+        for store in (_origins, _risks):
+            for k in [k for k in store if (agent_id is None or k[1] == agent_id) and (from_date is None or k[2] >= pd.Timestamp(from_date) - timedelta(days=lf.H))]:
+                del store[k]
+
+
 def _fill(model: str, d: date) -> None:
     """Computes the missing past origins for ALL agents in one vectorised pass (one calendar, one set of LightGBM calls).
     Features and quantiles at an origin only use data up to that origin, so each (agent, origin) is computed once and kept."""
     d_ts = pd.Timestamp(d)
     origins = [d_ts - timedelta(k) for k in range(1, N_ORIGINS + 1)]
-    need = sorted({o for aid in ledger.agents for o in origins if (model, aid, o) not in _origins})
-    if not need:
+    todo = {aid: [o for o in origins if (model, aid, o) not in _origins] for aid in ledger.agents}
+    todo = {aid: miss for aid, miss in todo.items() if miss}
+    if not todo:
         return
+    need = sorted({o for miss in todo.values() for o in miss})
     bundle = get_bundle(model)
     parts, first_dates = [], None
-    for aid in sorted(ledger.agents):
+    for aid in sorted(todo):
         g = ledger.frames[aid]
         hist = g[g["date"] <= d_ts].tail(HIST_DAYS)
         if len(hist) < lf.MIN_HIST + 2:

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import settings
 from ..errors import ApiError
-from . import adaptive
+from . import adaptive, anomalies
 from .alerts import raise_alerts
 from .context import Ctx, audit, ledger, set_config
 
@@ -28,10 +28,11 @@ def run_pipeline(ctx: Ctx, d: date) -> dict:
     ingested = sum(1 for aid in ledger.agents if ledger.row(aid, d) is not None)
     requested = [a for a in ledger.agents if a in ctx.rules["manual_report_agents"]]
     adapt = adaptive.run_nightly(ctx, d)       # per-agent adaptations first, so tonight's forecasts and alerts already use them
+    events = anomalies.run_nightly(ctx, d)     # unusual-demand detection: proposals (or small auto-accepts) before forecasts are refreshed
     created = raise_alerts(ctx, d)          # also recomputes (and caches) every agent's forecast for d
     ctx.db.commit()
     return dict(date=d.isoformat(), ledger_rows_ingested=ingested, reports_requested=len(requested),
-                forecasts_recomputed=len(ledger.agents), alerts_created=created, adaptive=adapt, elapsed_ms=round(1000 * (time.perf_counter() - t0)))
+                forecasts_recomputed=len(ledger.agents), alerts_created=created, adaptive=adapt, detected_events=events, elapsed_ms=round(1000 * (time.perf_counter() - t0)))
 
 
 def _move(db: Session, actor: str, target: date, action: str) -> dict:

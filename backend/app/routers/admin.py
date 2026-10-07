@@ -17,9 +17,9 @@ from ..errors import ApiError
 from ..ml.model_store import default_risk_config
 from ..models import Alert, AuditLog, Event, User
 from ..rules import business_rules as br
-from ..services import adaptive, dispatch, overview as overview_svc
+from ..services import adaptive, anomalies, dispatch, overview as overview_svc
 from ..services.alerts import alert_dict
-from ..services.context import Ctx, audit, event_dict, ledger, now_iso, set_config
+from ..services.context import Ctx, audit, event_dict, event_label, ledger, now_iso, set_config
 
 router = APIRouter(tags=["admin"])
 
@@ -156,10 +156,30 @@ def adaptive_decide(change_id: int, action: Literal["approve", "dismiss", "rever
     return adaptive.decide(Ctx(db), user.username, change_id, action)
 
 
+@router.get("/admin/detected-events")
+def detected_events(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Unusual-demand episodes found by the detector, with their evidence and status."""
+    return anomalies.listing(Ctx(db))
+
+
+@router.get("/admin/detection-evidence")
+def detection_evidence(_: User = Depends(require_admin)):
+    """Offline shock-injection evaluation of the detector (false-alarm rate, detection rate and delay). Synthetic data."""
+    path = settings.BACKEND / "app" / "data" / "event_detection_eval.json"
+    if not path.exists():
+        raise ApiError(404, "not_found", "Run `python -m scripts.event_detection_eval` (from backend/) to generate the evidence")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@router.post("/admin/detected-events/{detected_id}/{action}")
+def detected_decide(detected_id: int, action: Literal["accept", "dismiss", "revoke"], user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return anomalies.decide(Ctx(db), user.username, detected_id, action)
+
+
 @router.get("/admin/events")
 def list_events(_: User = Depends(require_admin), db: Session = Depends(get_db)):
     ctx = Ctx(db)
-    return [dict(event_dict(e), label="manual adjustment, not learned by the model")
+    return [dict(event_dict(e), label=event_label(e.kind))
             for e in db.scalars(select(Event).order_by(Event.id.desc()))]
 
 
@@ -198,7 +218,7 @@ def deactivate_event(event_id: int, user: User = Depends(require_admin), db: Ses
     e.active = False
     audit(db, user.username, "event_deactivate", "event", e.id, {})
     db.commit()
-    return dict(event_dict(e), label="manual adjustment, not learned by the model")
+    return dict(event_dict(e), label=event_label(e.kind))
 
 
 @router.get("/admin/audit")

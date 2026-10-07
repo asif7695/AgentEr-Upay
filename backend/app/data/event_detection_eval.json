@@ -1,0 +1,57 @@
+{
+ "stamp": "Synthetic data; shocks injected into a COPY of the ledger (observed flows multiplied for 7 days).",
+ "false_alarms": {
+  "nights": 111,
+  "agent_nights": 1776,
+  "detections": 20,
+  "detection_rate_per_agent_night": 0.0113,
+  "distinct_proposals": 11,
+  "proposals_per_week": 0.69,
+  "period": [
+   "2025-09-01",
+   "2025-12-20"
+  ]
+ },
+ "power": {
+  "1.3": {
+   "trials": 16,
+   "detected": 7,
+   "detection_rate": 0.438,
+   "median_delay_days": 3,
+   "within_3_days": 0.375
+  },
+  "1.5": {
+   "trials": 16,
+   "detected": 14,
+   "detection_rate": 0.875,
+   "median_delay_days": 2.0,
+   "within_3_days": 0.625
+  },
+  "2.0": {
+   "trials": 16,
+   "detected": 16,
+   "detection_rate": 1.0,
+   "median_delay_days": 1.0,
+   "within_3_days": 1.0
+  },
+  "0.6": {
+   "trials": 16,
+   "detected": 15,
+   "detection_rate": 0.938,
+   "median_delay_days": 1,
+   "within_3_days": 0.75
+  }
+ },
+ "protocol": {
+  "shock_length_days": 7,
+  "flows": "cash-out",
+  "magnitudes": [
+   1.3,
+   1.5,
+   2.0,
+   0.6
+  ],
+  "agents": 16,
+  "rule": "jump: 2 days |z|>=1.64 and >=25% off median; shift: CUSUM(k=0.75,h=5), >=3 days; proposals suppressed for 7 days per scope"
+ }
+}

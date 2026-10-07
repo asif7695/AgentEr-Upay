@@ -19,7 +19,7 @@ from ..ml import serving
 from ..ml.dependence import load_dependence
 from ..ml.model_store import effective_model, get_bundle
 from ..rules import business_rules as br
-from .context import Ctx, ledger
+from .context import Ctx, event_label, ledger
 
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -203,7 +203,7 @@ def get_forecast(ctx: Ctx, agent_id: str, d: date, explain: bool = False, compar
         expected_unserved=dict(cash=_r(unserved["cash"]), efloat=_r(unserved["efloat"]), total=_r(unserved["cash"] + unserved["efloat"]),
                                note="Model estimate inside the coverage window (Monte Carlo); not ground truth."),
         events=[dict(id=e["id"], kind=e["kind"], multiplier=e["multiplier"], flow=e["flow"], start_date=e["start_date"], end_date=e["end_date"],
-                     note=e["note"], label="manual adjustment, not learned by the model")
+                     note=e["note"], label=event_label(e["kind"]))
                 for e in br.active_events_for(ctx.events, agent, [d + timedelta(days=k) for k in range(1, lf.H + 1)])],
         thresholds=dict(high=thr[0], watch=thr[1], adapted=agent_id in rules["agent_overrides"] and any(k in rules["agent_overrides"][agent_id] for k in ("high_threshold", "watch_threshold"))),
         adaptive=dict(mode=rules["adaptive_mode"], overrides=rules["agent_overrides"].get(agent_id, {})),

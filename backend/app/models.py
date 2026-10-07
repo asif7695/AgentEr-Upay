@@ -163,3 +163,25 @@ class AdaptiveChange(Base):
     decided_at = Column(String(32), nullable=True)
     created_at = Column(String(32), nullable=False)
     __table_args__ = (Index("ix_adaptive_agent", "agent_id", "status"),)
+
+
+class DetectedEvent(Base):
+    """An unusual-demand episode found by the detector (jump or sustained shift, agent or area). It only becomes a live demand
+    multiplier (an `events` row) when an admin accepts it, or automatically in auto mode for small, bounded adjustments."""
+    __tablename__ = "detected_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    scope = Column(String(12), nullable=False)         # agent | division
+    target = Column(String(32), nullable=False)
+    flow = Column(String(8), nullable=False)           # both | cashout | cashin
+    kind = Column(String(8), nullable=False)           # jump | shift
+    direction = Column(String(5), nullable=False)      # up | down
+    multiplier = Column(Float, nullable=False)
+    start_date = Column(String(10), nullable=False)    # first forecast day the multiplier would apply to
+    end_date = Column(String(10), nullable=False)
+    evidence = Column(Text, nullable=False)            # JSON: per-agent detections, z-scores, CUSUM, ratios
+    status = Column(String(12), nullable=False)        # proposed | accepted | dismissed | expired | revoked
+    event_id = Column(Integer, nullable=True)
+    created_date = Column(String(10), nullable=False)
+    decided_by = Column(String(32), nullable=True)
+    decided_at = Column(String(32), nullable=True)
+    created_at = Column(String(32), nullable=False)
